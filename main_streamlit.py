@@ -42,28 +42,31 @@ def db():
     )
 
 def query(sql, params=(), one=False):
-    conn = db()
-    cur = conn.cursor(dictionary=True)
     try:
+        conn = db()
+        cur = conn.cursor(dictionary=True)
         cur.execute(sql, params)
-        return cur.fetchone() if one else cur.fetchall()
-    finally:
+        res = cur.fetchone() if one else cur.fetchall()
         cur.close()
         conn.close()
+        return res
+    except mysql.connector.Error as e:
+        st.error(f"❌ Error SQL en la consulta: {e}")
+        st.stop()
 
 def execute(sql, params=()):
-    conn = db()
-    cur = conn.cursor()
     try:
+        conn = db()
+        cur = conn.cursor()
         cur.execute(sql, params)
         conn.commit()
-        return cur.lastrowid, cur.rowcount
-    except Exception as e:
-        conn.rollback()
-        raise e
-    finally:
+        rowid, rowcount = cur.lastrowid, cur.rowcount
         cur.close()
         conn.close()
+        return rowid, rowcount
+    except mysql.connector.Error as e:
+        st.error(f"❌ Error SQL al ejecutar: {e}")
+        st.stop()
 
 # -----------------------------------------------------------------------------
 # MANEJO DE SESIÓN

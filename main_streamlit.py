@@ -6,9 +6,9 @@ import streamlit as st
 from zoneinfo import ZoneInfo
 
 # Librerías de Google Drive API
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
+#from google.oauth2 import service_account
+#from googleapiclient.discovery import build
+#from googleapiclient.http import MediaIoBaseUpload
 
 # Configuración de la interfaz
 st.set_page_config(

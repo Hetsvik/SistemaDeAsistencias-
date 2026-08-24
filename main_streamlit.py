@@ -136,21 +136,24 @@ def render_employee_view():
     user = st.session_state.user
     st.title(f"Panel del Empleado — {user['name']}")
     
+    current_time = now_local()
+    today_date = current_time.date()
+
     tab1, tab2 = st.tabs(["🕒 Control de Asistencia", "📋 Mis Tareas del Día"])
 
     # TAB 1: Asistencia
     with tab1:
         st.subheader("Marcación de Asistencia Hoy")
         
-        # Consulta de asistencia usando comillas invertidas en palabras reservadas (`exit`)
+        # Consultar asistencia usando la fecha local calculada por Python
         attendance = query(
             """
             SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS `exit`
             FROM Asistencia
-            WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = CURDATE()
+            WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = %s
             ORDER BY ID_Asistencia DESC
             """,
-            (user["id"],),
+            (user["id"], today_date),
             one=True,
         )
 
@@ -166,8 +169,8 @@ def render_employee_view():
         with col1:
             if st.button("🔴 Registrar Entrada", type="primary", disabled=bool(attendance), use_container_width=True):
                 execute(
-                    "INSERT INTO Asistencia (ID_Trabajador, Fecha_Entrada) VALUES (%s, NOW())",
-                    (user["id"],)
+                    "INSERT INTO Asistencia (ID_Trabajador, Fecha_Entrada) VALUES (%s, %s)",
+                    (user["id"], current_time)
                 )
                 st.success("Entrada registrada con éxito.")
                 st.rerun()
@@ -178,10 +181,10 @@ def render_employee_view():
                 _, count = execute(
                     """
                     UPDATE Asistencia 
-                    SET Fecha_Salida = NOW()
-                    WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = CURDATE() AND Fecha_Salida IS NULL
+                    SET Fecha_Salida = %s
+                    WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = %s AND Fecha_Salida IS NULL
                     """,
-                    (user["id"],),
+                    (current_time, user["id"], today_date),
                 )
                 if count:
                     st.success("Salida registrada con éxito.")
@@ -218,9 +221,9 @@ def render_employee_view():
                         execute(
                             """
                             INSERT INTO Tareas (ID_Trabajador, ID_Administrador_Asignador, ID_Proyecto, Descripcion_Tarea, Estado_Tarea, Fecha)
-                            VALUES (%s, %s, %s, %s, %s, CURDATE())
+                            VALUES (%s, %s, %s, %s, %s, %s)
                             """,
-                            (user["id"], admin["id"], proj_dict[selected_proj], task_desc.strip(), task_state)
+                            (user["id"], admin["id"], proj_dict[selected_proj], task_desc.strip(), task_state, today_date)
                         )
                         st.success("Tarea agregada.")
                         st.rerun()
@@ -235,10 +238,10 @@ def render_employee_view():
                    T.Estado_Tarea AS state, T.Observaciones AS notes
             FROM Tareas T
             JOIN Proyectos P ON P.ID_Proyecto=T.ID_Proyecto
-            WHERE T.ID_Trabajador=%s AND DATE(T.Fecha)=CURDATE()
+            WHERE T.ID_Trabajador=%s AND DATE(T.Fecha)=%s
             ORDER BY T.ID_Tarea DESC
             """,
-            (user["id"],),
+            (user["id"], today_date),
         )
 
         if tasks:

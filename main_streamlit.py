@@ -277,10 +277,11 @@ def render_admin_view():
         st.subheader("Asistencia del Día")
         attendance_data = query(
             """
-            SELECT W.Nombre_Completo AS Empleado, W.Codigo_Trabajador AS Codigo,
-                A.Fecha_Entrada AS Entrada, A.Fecha_Salida AS Salida
+            SELECT E.Nombre_Completo AS Empleado, W.Codigo_Trabajador AS Codigo,
+                   A.Fecha_Entrada AS Entrada, A.Fecha_Salida AS Salida
             FROM Asistencia A
             JOIN Trabajadores W ON W.ID_Trabajador=A.ID_Trabajador
+            JOIN Empleados E ON E.ID_Empleado=W.ID_Empleado
             WHERE A.Fecha_Calculada=CURDATE() ORDER BY A.Fecha_Entrada
             """
         )
@@ -289,10 +290,11 @@ def render_admin_view():
         st.subheader("Tareas del Día")
         task_data = query(
             """
-            SELECT W.Nombre_Completo AS Empleado, P.Nombre_Proyecto AS Proyecto,
-                T.Descripcion_Tarea AS Tarea, T.Estado_Tarea AS Estado, T.Observaciones AS Notas
+            SELECT E.Nombre_Completo AS Empleado, P.Nombre_Proyecto AS Proyecto,
+                   T.Descripcion_Tarea AS Tarea, T.Estado_Tarea AS Estado, T.Observaciones AS Notas
             FROM Tareas T
             JOIN Trabajadores W ON W.ID_Trabajador=T.ID_Trabajador
+            JOIN Empleados E ON E.ID_Empleado=W.ID_Empleado
             JOIN Proyectos P ON P.ID_Proyecto=T.ID_Proyecto
             WHERE T.Fecha=CURDATE() ORDER BY T.ID_Tarea DESC
             """
@@ -302,7 +304,15 @@ def render_admin_view():
     # TAB 2: Asignar Tareas
     with tab2:
         st.subheader("Nueva Tarea para un Empleado")
-        workers = query("SELECT ID_Trabajador AS id, Nombre_Completo AS name FROM Trabajadores ORDER BY Nombre_Completo")
+        workers = query(
+            """
+            SELECT W.ID_Trabajador AS id, E.Nombre_Completo AS name 
+            FROM Trabajadores W
+            JOIN Empleados E ON E.ID_Empleado=W.ID_Empleado
+            WHERE E.Estado='Activo'
+            ORDER BY E.Nombre_Completo
+            """
+        )
         projects = query("SELECT ID_Proyecto AS id, Nombre_Proyecto AS name FROM Proyectos ORDER BY Nombre_Proyecto")
 
         if workers and projects:
@@ -359,10 +369,11 @@ def render_admin_view():
         st.subheader("Listado de Personal")
         people = query(
             """
-            SELECT ID_Trabajador AS id, Nombre_Completo AS Nombre, Rol_Cargo AS Cargo,
-            Codigo_Trabajador AS Codigo, Estado
-            FROM Trabajadores T
-            JOIN Empleados E ON E.ID_Empleado=T.ID_Empleado ORDER BY Nombre_Completo
+            SELECT W.ID_Trabajador AS id, E.Nombre_Completo AS Nombre, W.Rol_Cargo AS Cargo,
+                   W.Codigo_Trabajador AS Codigo, E.Estado
+            FROM Trabajadores W
+            JOIN Empleados E ON E.ID_Empleado=W.ID_Empleado 
+            ORDER BY E.Nombre_Completo
             """
         )
         st.dataframe(people, use_container_width=True)
@@ -387,7 +398,6 @@ def render_admin_view():
         st.subheader("Lista de Proyectos")
         projs = query("SELECT ID_Proyecto AS ID, Nombre_Proyecto AS Proyecto, Area_Departamento AS Área FROM Proyectos ORDER BY Nombre_Proyecto")
         st.dataframe(projs, use_container_width=True)
-
 # -----------------------------------------------------------------------------
 # CONTROL DE FLUJO PRINCIPAL
 # -----------------------------------------------------------------------------

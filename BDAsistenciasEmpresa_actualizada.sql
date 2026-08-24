@@ -82,17 +82,22 @@ CREATE TABLE `Asistencia` (
     CONSTRAINT `UQ_Trabajador_Fecha` UNIQUE (`ID_Trabajador`, `Fecha_Calculada`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7. Tareas
+-- 7. Tareas (Se integraron Fecha_Inicio y Fecha_Entrega)
 CREATE TABLE `Tareas` (
     `ID_Tarea` INT AUTO_INCREMENT PRIMARY KEY,
     `ID_Trabajador` INT NOT NULL,
     `ID_Administrador_Asignador` INT NOT NULL,
     `ID_Proyecto` INT NOT NULL,
     `Fecha` DATE NOT NULL DEFAULT (CURRENT_DATE),
+    `Fecha_Inicio` DATETIME NULL,
+    `Fecha_Entrega` DATETIME NULL,
     `Descripcion_Tarea` TEXT NOT NULL,
     `Estado_Tarea` ENUM('Asignada', 'En Progreso', 'Completada', 'Bloqueada')
         NOT NULL DEFAULT 'Asignada',
     `Observaciones` TEXT NULL,
+    CONSTRAINT `CHK_Tareas_Fechas_Entrega` CHECK (
+        `Fecha_Entrega` IS NULL OR `Fecha_Inicio` IS NULL OR `Fecha_Entrega` >= `Fecha_Inicio`
+    ),
     CONSTRAINT `FK_Tareas_Trabajadores` FOREIGN KEY (`ID_Trabajador`)
         REFERENCES `Trabajadores` (`ID_Trabajador`),
     CONSTRAINT `FK_Tareas_Administrador` FOREIGN KEY (`ID_Administrador_Asignador`)
@@ -164,11 +169,11 @@ INSERT INTO `Asistencia` (
 
 INSERT INTO `Tareas` (
     `ID_Tarea`, `ID_Trabajador`, `ID_Administrador_Asignador`, `ID_Proyecto`, `Fecha`,
-    `Descripcion_Tarea`, `Estado_Tarea`, `Observaciones`
+    `Fecha_Inicio`, `Fecha_Entrega`, `Descripcion_Tarea`, `Estado_Tarea`, `Observaciones`
 ) VALUES
-    (1, 1, 1, 1, '2026-08-17',
+    (1, 1, 1, 1, '2026-08-17', '2026-08-17 09:00:00', '2026-08-17 17:00:00',
      'Modelado 3D de la fachada principal', 'En Progreso', NULL),
-    (2, 2, 1, 2, '2026-08-17',
+    (2, 2, 1, 2, '2026-08-17', '2026-08-17 09:30:00', '2026-08-17 18:00:00',
      'Creación y modelado de la base de datos para el sistema de horarios y asistencias corporativo',
      'En Progreso', NULL);
 
@@ -291,6 +296,8 @@ CREATE PROCEDURE `sp_asignar_tarea`(
     IN p_id_administrador_asignador INT,
     IN p_id_proyecto INT,
     IN p_fecha DATE,
+    IN p_fecha_inicio DATETIME,
+    IN p_fecha_entrega DATETIME,
     IN p_descripcion_tarea TEXT,
     IN p_observaciones TEXT
 )
@@ -332,10 +339,10 @@ BEGIN
 
     INSERT INTO `Tareas` (
         `ID_Trabajador`, `ID_Administrador_Asignador`, `ID_Proyecto`, `Fecha`,
-        `Descripcion_Tarea`, `Observaciones`
+        `Fecha_Inicio`, `Fecha_Entrega`, `Descripcion_Tarea`, `Observaciones`
     ) VALUES (
         p_id_trabajador, p_id_administrador_asignador, p_id_proyecto,
-        COALESCE(p_fecha, CURRENT_DATE),
+        COALESCE(p_fecha, CURRENT_DATE), p_fecha_inicio, p_fecha_entrega,
         TRIM(p_descripcion_tarea), p_observaciones
     );
 END $$
@@ -378,14 +385,3 @@ BEGIN
 END $$
 
 DELIMITER ;
-
--- =============================================================================
--- EJEMPLOS DE USO
--- =============================================================================
--- CALL sp_registrar_empleado('Ana Pérez', 'Activo');
--- CALL sp_registrar_trabajador('Ana Pérez', 'Diseñadora', '08:00:00', 'EM0039', '1234');
--- CALL sp_registrar_administrador('Laura Gómez', 'AD002', '4321');
--- CALL sp_registrar_asistencia(1, NULL);
--- CALL sp_registrar_salida_asistencia(1, NULL);
--- CALL sp_asignar_tarea(1, 1, 1, NULL, 'Revisar los planos de la fachada.', NULL);
--- CALL sp_registrar_actividad(1, NULL, 'Se revisaron las medidas del plano.', 'En Progreso', NULL);

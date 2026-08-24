@@ -198,7 +198,7 @@ def render_employee_view():
 
         attendance = query(
             """
-            SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS `exit`
+            SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS exit
             FROM Asistencia
             WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = %s
             ORDER BY ID_Asistencia DESC
@@ -287,9 +287,9 @@ def render_employee_view():
                 with st.expander(
                     f"📌 {task['project']} - [{task['state']}]"
                 ):
-                    st.write(f"**Descripción:** {task['description']}")
+                    st.write(f"*Descripción:* {task['description']}")
                     st.write(
-                        f"**Observaciones:** {task['notes'] or 'Sin observaciones'}"
+                        f"*Observaciones:* {task['notes'] or 'Sin observaciones'}"
                     )
 
                     new_state = st.selectbox(
@@ -485,8 +485,6 @@ def render_admin_view():
             "SELECT ID_Proyecto AS ID, Nombre_Proyecto AS Proyecto, Area_Departamento AS Área FROM Proyectos ORDER BY Nombre_Proyecto"
         )
         st.dataframe(projs, use_container_width=True)
-
-
 # -----------------------------------------------------------------------------
 # CONTROL DE FLUJO PRINCIPAL
 # -----------------------------------------------------------------------------

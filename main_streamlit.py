@@ -181,7 +181,7 @@ def render_login():
 
 
 # -----------------------------------------------------------------------------
-# VISTAS DE EMPLEADO
+# VISTAS DE EMPLEADO (Con navegación controlada por estado para notificaciones)
 # -----------------------------------------------------------------------------
 def render_employee_view():
     user = st.session_state.user
@@ -190,15 +190,38 @@ def render_employee_view():
     current_time = now_local()
     today_date = today_local()
 
-    tab1, tab2 = st.tabs(["🕒 Control de Asistencia", "📋 Mis Tareas del Día"])
+    # Inicializar estado de navegación interna del empleado si no existe
+    if "emp_nav" not in st.session_state:
+        st.session_state.emp_nav = "🕒 Control de Asistencia"
 
-    # TAB 1: Asistencia
-    with tab1:
+    nav_options = ["🕒 Control de Asistencia", "📋 Mis Tareas del Día"]
+    current_index = (
+        nav_options.index(st.session_state.emp_nav)
+        if st.session_state.emp_nav in nav_options
+        else 0
+    )
+
+    # Menú de pestañas interactivo gestionado por session_state
+    selected_tab = st.radio(
+        "Navegación",
+        nav_options,
+        index=current_index,
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+    st.session_state.emp_nav = selected_tab
+
+    st.divider()
+
+    # -------------------------------------------------------------------------
+    # SECCIÓN 1: CONTROL DE ASISTENCIA
+    # -------------------------------------------------------------------------
+    if st.session_state.emp_nav == "🕒 Control de Asistencia":
         st.subheader("Marcación de Asistencia Hoy")
 
         attendance = query(
             """
-            SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS `exit`
+            SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS exit
             FROM Asistencia
             WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = %s
             ORDER BY ID_Asistencia DESC
@@ -267,8 +290,10 @@ def render_employee_view():
                 else:
                     st.error("No hay entrada activa para hoy.")
 
-    # TAB 2: Tareas del Empleado (Solo visualización y actualización)
-    with tab2:
+    # -------------------------------------------------------------------------
+    # SECCIÓN 2: TAREAS DEL DÍA
+    # -------------------------------------------------------------------------
+    elif st.session_state.emp_nav == "📋 Mis Tareas del Día":
         st.subheader("Tareas de Hoy")
         tasks = query(
             """
@@ -287,9 +312,9 @@ def render_employee_view():
                 with st.expander(
                     f"📌 {task['project']} - [{task['state']}]"
                 ):
-                    st.write(f"**Descripción:** {task['description']}")
+                    st.write(f"*Descripción:* {task['description']}")
                     st.write(
-                        f"**Observaciones:** {task['notes'] or 'Sin observaciones'}"
+                        f"*Observaciones:* {task['notes'] or 'Sin observaciones'}"
                     )
 
                     new_state = st.selectbox(
@@ -495,8 +520,8 @@ if st.session_state.user is None:
 else:
     # Barra lateral
     with st.sidebar:
-        st.write(f"👤 **{st.session_state.user['name']}**")
-        st.write(f"💼 Rol: `{st.session_state.user['role']}`")
+        st.write(f"👤 *{st.session_state.user['name']}*")
+        st.write(f"💼 Rol: {st.session_state.user['role']}")
 
         st.divider()
 
@@ -533,7 +558,7 @@ else:
         else:
             notificaciones = []
 
-        # 2. Renderizar el botón/desplegable de la campana
+        # 2. Renderizar el botón/desplegable de la campana interactiva
         cantidad = len(notificaciones) if notificaciones else 0
         titulo_campana = (
             f"🔔 Notificaciones ({cantidad})"
@@ -543,12 +568,21 @@ else:
 
         with st.expander(titulo_campana):
             if cantidad > 0:
-                for notif in notificaciones:
+                for i, notif in enumerate(notificaciones):
                     if st.session_state.user["role"] == "Empleado":
-                        st.info(f"**📌 {notif['project']}**\n\n{notif['descr']}")
+                        # Al hacer clic en esta notificación, actualiza el estado y redirige a tareas
+                        if st.button(
+                            f"📌 {notif['project']}\n\n{notif['descr']}",
+                            key=f"notif_emp_{i}_{notif['project']}",
+                        ):
+                            st.session_state.emp_nav = (
+                                "📋 Mis Tareas del Día"
+                            )
+                            st.rerun()
                     else:
+                        # Para el Administrador (muestra información estática del éxito)
                         st.success(
-                            f"**✅ {notif['emp']} completó:**\n\n{notif['project']} - {notif['descr']}"
+                            f"*✅ {notif['emp']} completó:*\n\n{notif['project']} - {notif['descr']}"
                         )
             else:
                 st.write("No hay notificaciones nuevas para hoy.")
@@ -558,7 +592,7 @@ else:
         # --- CERRAR SESIÓN ---
         if st.button("🚪 Cerrar Sesión", use_container_width=True):
             st.session_state.clear()
-            st.query_params.clear()  # Limpia la URL para cerrar la sesión completamente
+            st.query_params.clear()  # Limpia la URL para cerrar la sesión por completo
             st.rerun()
 
     # Vistas según rol

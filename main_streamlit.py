@@ -219,9 +219,10 @@ def render_employee_view():
     if st.session_state.emp_nav == "🕒 Control de Asistencia":
         st.subheader("Marcación de Asistencia Hoy")
 
+        # Se reemplaza 'Fecha_Salida AS exit' por 'Fecha_Salida AS salida' para evitar palabras reservadas de MySQL
         attendance = query(
             """
-            SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS exit
+            SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS salida
             FROM Asistencia
             WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = %s
             ORDER BY ID_Asistencia DESC
@@ -244,8 +245,8 @@ def render_employee_view():
             st.metric(
                 "Salida Registrada",
                 (
-                    str(attendance["exit"])
-                    if attendance and attendance.get("exit")
+                    str(attendance["salida"])
+                    if attendance and attendance.get("salida")
                     else "Pendiente"
                 ),
             )
@@ -269,7 +270,7 @@ def render_employee_view():
 
         with col2:
             can_exit = (
-                attendance is not None and attendance.get("exit") is None
+                attendance is not None and attendance.get("salida") is None
             )
             if st.button(
                 "🔵 Registrar Salida",
@@ -448,7 +449,7 @@ def render_admin_view():
                     st.warning("Completa todos los datos.")
                 elif len(pin) != 4 or not pin.isdigit():
                     st.warning(
-                        "El PIN debe ser estrictamente de 4 dígitos numéricos."
+                        "El PIN debe ser strictly de 4 dígitos numéricos."
                     )
                 else:
                     try:

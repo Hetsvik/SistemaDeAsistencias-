@@ -1,12 +1,18 @@
 import os
 import streamlit as st
 import mysql.connector
+from datetime import datetime
+from zoneinfo import ZoneInfo
 # Configuración de la interfaz
 st.set_page_config(
     page_title="Control de Asistencia y Actividades",
     page_icon="⏱️",
     layout="wide"
 )
+
+def now_local():
+    """Retorna la fecha y hora actual en zona horaria Perú/Colombia/Ecuador (UTC-5)"""
+    return datetime.now(ZoneInfo("America/Lima"))
 
 # -----------------------------------------------------------------------------
 # CONEXIÓN A BASE DE DATOS EN CLEVER CLOUD

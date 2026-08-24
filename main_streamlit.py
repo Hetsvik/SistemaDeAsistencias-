@@ -152,10 +152,10 @@ def render_employee_view():
     with tab1:
         st.subheader("Marcación de Asistencia Hoy")
         
-        # Consulta de asistencia del día
+        # Consulta de asistencia usando comillas invertidas en palabras reservadas (`exit`)
         attendance = query(
             """
-            SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS exit
+            SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS `exit`
             FROM Asistencia
             WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = CURDATE()
             ORDER BY ID_Asistencia DESC

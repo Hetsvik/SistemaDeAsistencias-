@@ -151,12 +151,13 @@ def render_employee_view():
     # TAB 1: Asistencia
     with tab1:
         st.subheader("Marcación de Asistencia Hoy")
+        
+        # Consulta de asistencia del día
         attendance = query(
             """
-            SELECT ID_Asistencia AS id,
-                   Fecha_Entrada AS entry, Fecha_Salida AS exit
+            SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS exit
             FROM Asistencia
-            WHERE ID_Trabajador=%s AND DATE(Fecha_Entrada)=CURDATE()
+            WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = CURDATE()
             ORDER BY ID_Asistencia DESC
             """,
             (user["id"],),
@@ -165,29 +166,30 @@ def render_employee_view():
 
         col_a, col_b = st.columns(2)
         with col_a:
-            st.metric("Entrada Registrada", str(attendance["entry"]) if attendance and attendance["entry"] else "Pendiente")
+            st.metric("Entrada Registrada", str(attendance["entry"]) if attendance and attendance.get("entry") else "Pendiente")
         with col_b:
-            st.metric("Salida Registrada", str(attendance["exit"]) if attendance and attendance["exit"] else "Pendiente")
+            st.metric("Salida Registrada", str(attendance["exit"]) if attendance and attendance.get("exit") else "Pendiente")
 
         st.divider()
         col1, col2 = st.columns(2)
         
         with col1:
             if st.button("🔴 Registrar Entrada", type="primary", disabled=bool(attendance), use_container_width=True):
-                try:
-                    execute("INSERT INTO Asistencia (ID_Trabajador, Fecha_Entrada) VALUES (%s, NOW())", (user["id"],))
-                    st.success("Entrada registrada con éxito.")
-                    st.rerun()
-                except Exception:
-                    st.error("Ocurrió un error al registrar la entrada o ya existe un registro activo.")
+                execute(
+                    "INSERT INTO Asistencia (ID_Trabajador, Fecha_Entrada) VALUES (%s, NOW())",
+                    (user["id"],)
+                )
+                st.success("Entrada registrada con éxito.")
+                st.rerun()
 
         with col2:
-            can_exit = attendance is not None and attendance["exit"] is None
+            can_exit = attendance is not None and attendance.get("exit") is None
             if st.button("🔵 Registrar Salida", disabled=not can_exit, use_container_width=True):
                 _, count = execute(
                     """
-                    UPDATE Asistencia SET Fecha_Salida=NOW()
-                    WHERE ID_Trabajador=%s AND DATE(Fecha_Entrada)=CURDATE() AND Fecha_Salida IS NULL
+                    UPDATE Asistencia 
+                    SET Fecha_Salida = NOW()
+                    WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = CURDATE() AND Fecha_Salida IS NULL
                     """,
                     (user["id"],),
                 )
@@ -249,24 +251,27 @@ def render_employee_view():
             (user["id"],),
         )
 
-        for task in tasks:
-            with st.expander(f"📌 {task['project']} - [{task['state']}]"):
-                st.write(f"**Descripción:** {task['description']}")
-                st.write(f"**Observaciones:** {task['notes'] or 'Sin observaciones'}")
-                
-                new_state = st.selectbox("Actualizar Estado", ["Asignada", "En Progreso", "Completada", "Bloqueada"], key=f"st_{task['id']}")
-                new_notes = st.text_input("Observaciones", value=task['notes'] or "", key=f"nt_{task['id']}")
+        if tasks:
+            for task in tasks:
+                with st.expander(f"📌 {task['project']} - [{task['state']}]"):
+                    st.write(f"**Descripción:** {task['description']}")
+                    st.write(f"**Observaciones:** {task['notes'] or 'Sin observaciones'}")
+                    
+                    new_state = st.selectbox("Actualizar Estado", ["Asignada", "En Progreso", "Completada", "Bloqueada"], key=f"st_{task['id']}")
+                    new_notes = st.text_input("Observaciones", value=task['notes'] or "", key=f"nt_{task['id']}")
 
-                if st.button("Actualizar Tarea", key=f"btn_{task['id']}"):
-                    if new_state == "Bloqueada" and not new_notes.strip():
-                        st.warning("Debes ingresar una observación si bloqueas la tarea.")
-                    else:
-                        execute(
-                            "UPDATE Tareas SET Estado_Tarea=%s, Observaciones=%s WHERE ID_Tarea=%s AND ID_Trabajador=%s",
-                            (new_state, new_notes.strip() or None, task['id'], user['id'])
-                        )
-                        st.success("Estado actualizado.")
-                        st.rerun()
+                    if st.button("Actualizar Tarea", key=f"btn_{task['id']}"):
+                        if new_state == "Bloqueada" and not new_notes.strip():
+                            st.warning("Debes ingresar una observación si bloqueas la tarea.")
+                        else:
+                            execute(
+                                "UPDATE Tareas SET Estado_Tarea=%s, Observaciones=%s WHERE ID_Tarea=%s AND ID_Trabajador=%s",
+                                (new_state, new_notes.strip() or None, task['id'], user['id'])
+                            )
+                            st.success("Estado actualizado.")
+                            st.rerun()
+        else:
+            st.info("No tienes tareas registradas para el día de hoy.")
 # -----------------------------------------------------------------------------
 # VISTAS DE ADMINISTRADOR
 # -----------------------------------------------------------------------------

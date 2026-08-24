@@ -11,8 +11,12 @@ st.set_page_config(
 )
 
 def now_local():
-    """Retorna la fecha y hora actual en zona horaria Perú/Colombia/Ecuador (UTC-5)"""
-    return datetime.now(ZoneInfo("America/Lima"))
+    """Retorna la fecha y hora actual en zona horaria local (UTC-5) formateada para MySQL"""
+    return datetime.now(ZoneInfo("America/Lima")).strftime("%Y-%m-%d %H:%M:%S")
+
+def today_local():
+    """Retorna únicamente la fecha de hoy en zona horaria local (UTC-5)"""
+    return datetime.now(ZoneInfo("America/Lima")).date()
 
 # -----------------------------------------------------------------------------
 # CONEXIÓN A BASE DE DATOS EN CLEVER CLOUD

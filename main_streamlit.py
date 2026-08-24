@@ -137,7 +137,7 @@ def render_employee_view():
     st.title(f"Panel del Empleado — {user['name']}")
     
     current_time = now_local()
-    today_date = current_time.date()
+    today_date = today_local()
 
     tab1, tab2 = st.tabs(["🕒 Control de Asistencia", "📋 Mis Tareas del Día"])
 
@@ -145,7 +145,6 @@ def render_employee_view():
     with tab1:
         st.subheader("Marcación de Asistencia Hoy")
         
-        # Consultar asistencia usando la fecha local calculada por Python
         attendance = query(
             """
             SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS `exit`
@@ -169,8 +168,8 @@ def render_employee_view():
         with col1:
             if st.button("🔴 Registrar Entrada", type="primary", disabled=bool(attendance), use_container_width=True):
                 execute(
-                        "INSERT INTO Asistencia (ID_Trabajador, Fecha_Entrada) VALUES (%s, %s)",
-                        (user["id"], now_local())
+                    "INSERT INTO Asistencia (ID_Trabajador, Fecha_Entrada) VALUES (%s, %s)",
+                    (user["id"], now_local())
                 )
                 st.success("Entrada registrada con éxito.")
                 st.rerun()
@@ -179,58 +178,21 @@ def render_employee_view():
             can_exit = attendance is not None and attendance.get("exit") is None
             if st.button("🔵 Registrar Salida", disabled=not can_exit, use_container_width=True):
                 _, count = execute(
-                        """
-                        UPDATE Asistencia 
-                        SET Fecha_Salida = %s
-                        WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = %s AND Fecha_Salida IS NULL
-                        """,
-                    (now_local(), user["id"], today_local()),
-                    )
+                    """
+                    UPDATE Asistencia 
+                    SET Fecha_Salida = %s
+                    WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = %s AND Fecha_Salida IS NULL
+                    """,
+                    (now_local(), user["id"], today_date),
+                )
                 if count:
                     st.success("Salida registrada con éxito.")
                     st.rerun()
                 else:
                     st.error("No hay entrada activa para hoy.")
 
-    # TAB 2: Tareas del Empleado
+    # TAB 2: Tareas del Empleado (Solo visualización y actualización)
     with tab2:
-        st.subheader("Crear / Registrar Nueva Tarea")
-        projects = query("SELECT ID_Proyecto AS id, Nombre_Proyecto AS name FROM Proyectos ORDER BY Nombre_Proyecto")
-        
-        if projects:
-            proj_dict = {p["name"]: p["id"] for p in projects}
-            selected_proj = st.selectbox("Proyecto", list(proj_dict.keys()))
-            task_desc = st.text_area("Descripción de la Tarea")
-            task_state = st.selectbox("Estado Inicial", ["Asignada", "En Progreso"])
-
-            if st.button("Guardar Tarea"):
-                if not task_desc.strip():
-                    st.warning("La descripción es obligatoria.")
-                else:
-                    admin = query(
-                        """
-                        SELECT A.ID_Administrador AS id FROM Administrador A
-                        JOIN Empleados E ON E.ID_Empleado=A.ID_Empleado
-                        WHERE E.Estado='Activo' ORDER BY A.ID_Administrador LIMIT 1
-                        """,
-                        one=True,
-                    )
-                    if not admin:
-                        st.error("No hay un administrador activo en el sistema.")
-                    else:
-                        execute(
-                            """
-                            INSERT INTO Tareas (ID_Trabajador, ID_Administrador_Asignador, ID_Proyecto, Descripcion_Tarea, Estado_Tarea, Fecha)
-                            VALUES (%s, %s, %s, %s, %s, %s)
-                            """,
-                            (user["id"], admin["id"], proj_dict[selected_proj], task_desc.strip(), task_state, today_date)
-                        )
-                        st.success("Tarea agregada.")
-                        st.rerun()
-        else:
-            st.info("No hay proyectos disponibles.")
-
-        st.divider()
         st.subheader("Tareas de Hoy")
         tasks = query(
             """
@@ -264,7 +226,7 @@ def render_employee_view():
                             st.success("Estado actualizado.")
                             st.rerun()
         else:
-            st.info("No tienes tareas registradas para el día de hoy.")
+            st.info("No tienes tareas asignadas para el día de hoy.")
 # -----------------------------------------------------------------------------
 # VISTAS DE ADMINISTRADOR
 # -----------------------------------------------------------------------------

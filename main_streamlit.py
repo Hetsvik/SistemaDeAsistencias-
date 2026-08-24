@@ -409,6 +409,61 @@ else:
     with st.sidebar:
         st.write(f"👤 **{st.session_state.user['name']}**")
         st.write(f"💼 Rol: `{st.session_state.user['role']}`")
+        
+        st.divider()
+
+        # --- SISTEMA DE NOTIFICACIONES ---
+        today_date = now_local().date()
+
+        # 1. Consultar base de datos según el rol
+        if st.session_state.user["role"] == "Empleado":
+            # Tareas asignadas hoy al empleado
+            notificaciones = query(
+                """
+                SELECT P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS descr
+                FROM Tareas T
+                JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
+                WHERE T.ID_Trabajador = %s AND T.Estado_Tarea = 'Asignada' AND T.Fecha = %s
+                ORDER BY T.ID_Tarea DESC
+                """,
+                (st.session_state.user["id"], today_date)
+            )
+        elif st.session_state.user["role"] == "Administrador":
+            # Tareas completadas hoy por cualquier empleado
+            notificaciones = query(
+                """
+                SELECT E.Nombre_Completo AS emp, P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS descr
+                FROM Tareas T
+                JOIN Trabajadores W ON W.ID_Trabajador = T.ID_Trabajador
+                JOIN Empleados E ON E.ID_Empleado = W.ID_Empleado
+                JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
+                WHERE T.Estado_Tarea = 'Completada' AND T.Fecha = %s
+                ORDER BY T.ID_Tarea DESC
+                """,
+                (today_date,)
+            )
+        else:
+            notificaciones = []
+
+        # 2. Renderizar el botón/desplegable de la campana
+        cantidad = len(notificaciones) if notificaciones else 0
+        titulo_campana = f"🔔 Notificaciones ({cantidad})" if cantidad > 0 else "🔔 Notificaciones"
+
+        with st.expander(titulo_campana):
+            if cantidad > 0:
+                for notif in notificaciones:
+                    if st.session_state.user["role"] == "Empleado":
+                        # Mensaje visual para el Empleado
+                        st.info(f"**📌 {notif['project']}**\n\n{notif['descr']}")
+                    else:
+                        # Mensaje visual para el Administrador
+                        st.success(f"**✅ {notif['emp']} completó:**\n\n{notif['project']} - {notif['descr']}")
+            else:
+                st.write("No hay notificaciones nuevas para hoy.")
+
+        st.divider()
+        
+        # --- CERRAR SESIÓN ---
         if st.button("🚪 Cerrar Sesión", use_container_width=True):
             st.session_state.user = None
             st.rerun()

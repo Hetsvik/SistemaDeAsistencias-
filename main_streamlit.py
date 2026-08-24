@@ -12,34 +12,18 @@ st.set_page_config(
 # CONEXIÓN A BASE DE DATOS EN CLEVER CLOUD
 # -----------------------------------------------------------------------------
 def db():
-    """Conexión a MySQL usando credenciales de st.secrets o variables de entorno de Clever Cloud."""
-    def get_val(key_list):
-        for k in key_list:
-            if k in st.secrets:
-                return st.secrets[k]
-            if os.getenv(k):
-                return os.getenv(k)
-        return None
-
-    host = get_val(["MYSQL_HOST", "MYSQL_ADDON_HOST"])
-    port = get_val(["MYSQL_PORT", "MYSQL_ADDON_PORT"]) or "3306"
-    user = get_val(["MYSQL_USER", "MYSQL_ADDON_USER"])
-    password = get_val(["MYSQL_PASSWORD", "MYSQL_ADDON_PASSWORD"])
-    database = get_val(["MYSQL_DATABASE", "MYSQL_ADDON_DB"])
-
-    if not all([host, user, password, database]):
-        st.error("❌ Faltan las variables de conexión a la base de datos en los Secrets de Streamlit.")
-        st.stop()
-
-    return mysql.connector.connect(
-        host=host,
-        port=int(port),
-        user=user,
-        password=password,
-        database=database,
-        connection_timeout=10,
-        autocommit=False
+    conn = mysql.connector.connect(
+        host=st.secrets["mysql"]["host"],
+        user=st.secrets["mysql"]["user"],
+        password=st.secrets["mysql"]["password"],
+        database=st.secrets["mysql"]["database"],
+        port=st.secrets["mysql"]["port"]
     )
+    # Establece la zona horaria de la sesión a GMT-5 (Perú / Colombia / Ecuador)
+    cur = conn.cursor()
+    cur.execute("SET time_zone = '-05:00';")
+    cur.close()
+    return conn
 
 def query(sql, params=(), one=False):
     try:

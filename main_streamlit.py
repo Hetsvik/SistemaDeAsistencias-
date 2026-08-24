@@ -74,7 +74,6 @@ def execute(sql, params=()):
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Restaurar sesión si la página se actualiza (F5) usando la URL
 if st.session_state.user is None and "user_id" in st.query_params:
     saved_id = st.query_params["user_id"]
     saved_role = st.query_params.get("role")
@@ -169,11 +168,8 @@ def render_login():
             user = login(code, pin, role)
             if user:
                 st.session_state.user = user
-
-                # Guardar credenciales de sesión en la URL para F5
                 st.query_params["user_id"] = str(user["id"])
                 st.query_params["role"] = user["role"]
-
                 st.success(f"Bienvenido, {user['name']}")
                 st.rerun()
             else:
@@ -181,7 +177,7 @@ def render_login():
 
 
 # -----------------------------------------------------------------------------
-# VISTAS DE EMPLEADO (Con navegación controlada por estado para notificaciones)
+# VISTAS DE EMPLEADO
 # -----------------------------------------------------------------------------
 def render_employee_view():
     user = st.session_state.user
@@ -190,7 +186,6 @@ def render_employee_view():
     current_time = now_local()
     today_date = today_local()
 
-    # Inicializar estado de navegación interna del empleado si no existe
     if "emp_nav" not in st.session_state:
         st.session_state.emp_nav = "🕒 Control de Asistencia"
 
@@ -201,7 +196,6 @@ def render_employee_view():
         else 0
     )
 
-    # Menú de pestañas interactivo gestionado por session_state
     selected_tab = st.radio(
         "Navegación",
         nav_options,
@@ -219,7 +213,6 @@ def render_employee_view():
     if st.session_state.emp_nav == "🕒 Control de Asistencia":
         st.subheader("Marcación de Asistencia Hoy")
 
-        # Se reemplaza 'Fecha_Salida AS exit' por 'Fecha_Salida AS salida' para evitar palabras reservadas de MySQL
         attendance = query(
             """
             SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS salida
@@ -292,14 +285,15 @@ def render_employee_view():
                     st.error("No hay entrada activa para hoy.")
 
     # -------------------------------------------------------------------------
-    # SECCIÓN 2: TAREAS DEL DÍA
+    # SECCIÓN 2: TAREAS DEL DÍA (CON FECHA INICIO Y ENTREGA)
     # -------------------------------------------------------------------------
     elif st.session_state.emp_nav == "📋 Mis Tareas del Día":
         st.subheader("Tareas de Hoy")
         tasks = query(
             """
             SELECT T.ID_Tarea AS id, P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS description,
-                   T.Estado_Tarea AS state, T.Observaciones AS notes
+                   T.Estado_Tarea AS state, T.Observaciones AS notes,
+                   T.Fecha_Inicio AS start_time, T.Fecha_Entrega AS end_time
             FROM Tareas T
             JOIN Proyectos P ON P.ID_Proyecto=T.ID_Proyecto
             WHERE T.ID_Trabajador=%s AND DATE(T.Fecha)=%s
@@ -310,12 +304,21 @@ def render_employee_view():
 
         if tasks:
             for task in tasks:
-                with st.expander(
-                    f"📌 {task['project']} - [{task['state']}]"
-                ):
-                    st.write(f"*Descripción:* {task['description']}")
+                with st.expander(f"📌 {task['project']} - [{task['state']}]"):
+                    # Muestra de fechas programadas
+                    col_t1, col_t2 = st.columns(2)
+                    with col_t1:
+                        st.info(
+                            f"📅 **Inicio Programado:**\n\n{task['start_time'] or 'Sin definir'}"
+                        )
+                    with col_t2:
+                        st.warning(
+                            f"⏰ **Fecha/Hora de Entrega:**\n\n{task['end_time'] or 'Sin definir'}"
+                        )
+
+                    st.write(f"**Descripción:** {task['description']}")
                     st.write(
-                        f"*Observaciones:* {task['notes'] or 'Sin observaciones'}"
+                        f"**Observaciones:** {task['notes'] or 'Sin observaciones'}"
                     )
 
                     new_state = st.selectbox(
@@ -379,7 +382,8 @@ def render_admin_view():
         task_data = query(
             """
             SELECT E.Nombre_Completo AS Empleado, P.Nombre_Proyecto AS Proyecto,
-                   T.Descripcion_Tarea AS Tarea, T.Estado_Tarea AS Estado, T.Observaciones AS Notas
+                   T.Descripcion_Tarea AS Tarea, T.Fecha_Inicio AS 'Fecha/Hora Inicio', 
+                   T.Fecha_Entrega AS 'Fecha/Hora Entrega', T.Estado_Tarea AS Estado, T.Observaciones AS Notas
             FROM Tareas T
             JOIN Trabajadores W ON W.ID_Trabajador=T.ID_Trabajador
             JOIN Empleados E ON E.ID_Empleado=W.ID_Empleado
@@ -389,7 +393,7 @@ def render_admin_view():
         )
         st.dataframe(task_data, use_container_width=True)
 
-    # TAB 2: Asignar Tareas
+    # TAB 2: Asignar Tareas (NUEVOS CAMPOS INICIO Y ENTREGA)
     with tab2:
         st.subheader("Nueva Tarea para un Empleado")
         workers = query(
@@ -411,6 +415,25 @@ def render_admin_view():
 
             selected_w = st.selectbox("Trabajador", list(w_dict.keys()))
             selected_p = st.selectbox("Proyecto", list(p_dict.keys()))
+
+            # Captura de Fecha y Hora de Inicio
+            col_in1, col_in2 = st.columns(2)
+            with col_in1:
+                f_inicio_date = st.date_input(
+                    "Fecha de Inicio", value=today_local()
+                )
+            with col_in2:
+                f_inicio_time = st.time_input("Hora de Inicio")
+
+            # Captura de Fecha y Hora de Entrega
+            col_en1, col_en2 = st.columns(2)
+            with col_en1:
+                f_entrega_date = st.date_input(
+                    "Fecha de Entrega", value=today_local()
+                )
+            with col_en2:
+                f_entrega_time = st.time_input("Hora de Entrega")
+
             desc = st.text_area("Descripción")
             state = st.selectbox("Estado", ["Asignada", "En Progreso"])
 
@@ -418,21 +441,33 @@ def render_admin_view():
                 if not desc.strip():
                     st.warning("Escribe una descripción.")
                 else:
-                    execute(
-                        """
-                        INSERT INTO Tareas (ID_Trabajador, ID_Administrador_Asignador, ID_Proyecto, Descripcion_Tarea, Estado_Tarea, Fecha)
-                        VALUES (%s, %s, %s, %s, %s, CURDATE())
-                        """,
-                        (
-                            w_dict[selected_w],
-                            st.session_state.user["id"],
-                            p_dict[selected_p],
-                            desc.strip(),
-                            state,
-                        ),
+                    dt_inicio = datetime.combine(f_inicio_date, f_inicio_time)
+                    dt_entrega = datetime.combine(
+                        f_entrega_date, f_entrega_time
                     )
-                    st.success("Tarea asignada exitosamente.")
-                    st.rerun()
+
+                    if dt_entrega < dt_inicio:
+                        st.error(
+                            "❌ La fecha de entrega no puede ser anterior a la fecha de inicio."
+                        )
+                    else:
+                        execute(
+                            """
+                            INSERT INTO Tareas (ID_Trabajador, ID_Administrador_Asignador, ID_Proyecto, Descripcion_Tarea, Estado_Tarea, Fecha_Inicio, Fecha_Entrega, Fecha)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, CURDATE())
+                            """,
+                            (
+                                w_dict[selected_w],
+                                st.session_state.user["id"],
+                                p_dict[selected_p],
+                                desc.strip(),
+                                state,
+                                dt_inicio.strftime("%Y-%m-%d %H:%M:%S"),
+                                dt_entrega.strftime("%Y-%m-%d %H:%M:%S"),
+                            ),
+                        )
+                        st.success("Tarea asignada exitosamente.")
+                        st.rerun()
 
     # TAB 3: Gestión de Personal
     with tab3:
@@ -519,19 +554,15 @@ def render_admin_view():
 if st.session_state.user is None:
     render_login()
 else:
-    # Barra lateral
     with st.sidebar:
         st.write(f"👤 *{st.session_state.user['name']}*")
         st.write(f"💼 Rol: {st.session_state.user['role']}")
 
         st.divider()
 
-        # --- SISTEMA DE NOTIFICACIONES ---
         today_date = today_local()
 
-        # 1. Consultar base de datos según el rol
         if st.session_state.user["role"] == "Empleado":
-            # Tareas asignadas hoy al empleado
             notificaciones = query(
                 """
                 SELECT P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS descr
@@ -543,7 +574,6 @@ else:
                 (st.session_state.user["id"], today_date),
             )
         elif st.session_state.user["role"] == "Administrador":
-            # Tareas completadas hoy por cualquier empleado
             notificaciones = query(
                 """
                 SELECT E.Nombre_Completo AS emp, P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS descr
@@ -559,7 +589,6 @@ else:
         else:
             notificaciones = []
 
-        # 2. Renderizar el botón/desplegable de la campana interactiva
         cantidad = len(notificaciones) if notificaciones else 0
         titulo_campana = (
             f"🔔 Notificaciones ({cantidad})"
@@ -571,7 +600,6 @@ else:
             if cantidad > 0:
                 for i, notif in enumerate(notificaciones):
                     if st.session_state.user["role"] == "Empleado":
-                        # Al hacer clic en esta notificación, actualiza el estado y redirige a tareas
                         if st.button(
                             f"📌 {notif['project']}\n\n{notif['descr']}",
                             key=f"notif_emp_{i}_{notif['project']}",
@@ -581,7 +609,6 @@ else:
                             )
                             st.rerun()
                     else:
-                        # Para el Administrador (muestra información estática del éxito)
                         st.success(
                             f"*✅ {notif['emp']} completó:*\n\n{notif['project']} - {notif['descr']}"
                         )
@@ -590,13 +617,11 @@ else:
 
         st.divider()
 
-        # --- CERRAR SESIÓN ---
         if st.button("🚪 Cerrar Sesión", use_container_width=True):
             st.session_state.clear()
-            st.query_params.clear()  # Limpia la URL para cerrar la sesión por completo
+            st.query_params.clear()
             st.rerun()
 
-    # Vistas según rol
     if st.session_state.user["role"] == "Empleado":
         render_employee_view()
     elif st.session_state.user["role"] == "Administrador":

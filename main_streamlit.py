@@ -499,7 +499,7 @@ else:
         st.divider()
 
         # --- SISTEMA DE NOTIFICACIONES ---
-        today_date = now_local().date()
+        today_date = today_local()  # <--- Cambia now_local().date() por today_local()
 
         # 1. Consultar base de datos según el rol
         if st.session_state.user["role"] == "Empleado":

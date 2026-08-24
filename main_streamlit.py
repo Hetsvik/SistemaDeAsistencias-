@@ -169,8 +169,8 @@ def render_employee_view():
         with col1:
             if st.button("🔴 Registrar Entrada", type="primary", disabled=bool(attendance), use_container_width=True):
                 execute(
-                    "INSERT INTO Asistencia (ID_Trabajador, Fecha_Entrada) VALUES (%s, %s)",
-                    (user["id"], current_time)
+                        "INSERT INTO Asistencia (ID_Trabajador, Fecha_Entrada) VALUES (%s, %s)",
+                        (user["id"], now_local())
                 )
                 st.success("Entrada registrada con éxito.")
                 st.rerun()
@@ -179,13 +179,13 @@ def render_employee_view():
             can_exit = attendance is not None and attendance.get("exit") is None
             if st.button("🔵 Registrar Salida", disabled=not can_exit, use_container_width=True):
                 _, count = execute(
-                    """
-                    UPDATE Asistencia 
-                    SET Fecha_Salida = %s
-                    WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = %s AND Fecha_Salida IS NULL
-                    """,
-                    (current_time, user["id"], today_date),
-                )
+                        """
+                        UPDATE Asistencia 
+                        SET Fecha_Salida = %s
+                        WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = %s AND Fecha_Salida IS NULL
+                        """,
+                    (now_local(), user["id"], today_local()),
+                    )
                 if count:
                     st.success("Salida registrada con éxito.")
                     st.rerun()

@@ -150,10 +150,11 @@ def render_employee_view():
         st.subheader("Marcación de Asistencia Hoy")
         attendance = query(
             """
-            SELECT ID_Asistencia AS id, Fecha_Calculada AS date,
-                Fecha_Entrada AS entry, Fecha_Salida AS exit
+            SELECT ID_Asistencia AS id,
+                   Fecha_Entrada AS entry, Fecha_Salida AS exit
             FROM Asistencia
-            WHERE ID_Trabajador=%s AND Fecha_Calculada=CURDATE()
+            WHERE ID_Trabajador=%s AND DATE(Fecha_Entrada)=CURDATE()
+            ORDER BY ID_Asistencia DESC
             """,
             (user["id"],),
             one=True,
@@ -175,7 +176,7 @@ def render_employee_view():
                     st.success("Entrada registrada con éxito.")
                     st.rerun()
                 except Exception:
-                    st.error("Ya existe una entrada registrada para hoy.")
+                    st.error("Ocurrió un error al registrar la entrada o ya existe un registro activo.")
 
         with col2:
             can_exit = attendance is not None and attendance["exit"] is None
@@ -183,7 +184,7 @@ def render_employee_view():
                 _, count = execute(
                     """
                     UPDATE Asistencia SET Fecha_Salida=NOW()
-                    WHERE ID_Trabajador=%s AND Fecha_Calculada=CURDATE() AND Fecha_Salida IS NULL
+                    WHERE ID_Trabajador=%s AND DATE(Fecha_Entrada)=CURDATE() AND Fecha_Salida IS NULL
                     """,
                     (user["id"],),
                 )
@@ -236,10 +237,10 @@ def render_employee_view():
         tasks = query(
             """
             SELECT T.ID_Tarea AS id, P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS description,
-                T.Estado_Tarea AS state, T.Observaciones AS notes
+                   T.Estado_Tarea AS state, T.Observaciones AS notes
             FROM Tareas T
             JOIN Proyectos P ON P.ID_Proyecto=T.ID_Proyecto
-            WHERE T.ID_Trabajador=%s AND T.Fecha=CURDATE()
+            WHERE T.ID_Trabajador=%s AND DATE(T.Fecha)=CURDATE()
             ORDER BY T.ID_Tarea DESC
             """,
             (user["id"],),
@@ -263,7 +264,6 @@ def render_employee_view():
                         )
                         st.success("Estado actualizado.")
                         st.rerun()
-
 # -----------------------------------------------------------------------------
 # VISTAS DE ADMINISTRADOR
 # -----------------------------------------------------------------------------

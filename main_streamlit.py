@@ -61,7 +61,41 @@ def execute(sql, params=()):
     except mysql.connector.Error as e:
         st.error(f"❌ Error SQL al ejecutar: {e}")
         st.stop()
+        
+# Inicializar estado de sesión
+if "user" not in st.session_state:
+    st.session_state.user = None
 
+# Restaurar sesión si existe el parámetro 'user_id' en la URL
+if st.session_state.user is None and "user_id" in st.query_params:
+    saved_id = st.query_params["user_id"]
+    saved_role = st.query_params.get("role")
+
+    if saved_role == "admin":
+        user_data = query(
+            """
+            SELECT A.ID_Administrador AS id, E.Nombre_Completo AS name, 'admin' AS role
+            FROM Administrador A
+            JOIN Empleados E ON E.ID_Empleado = A.ID_Empleado
+            WHERE A.ID_Administrador = %s
+            """,
+            (saved_id,),
+            one=True,
+        )
+    else:
+        user_data = query(
+            """
+            SELECT W.ID_Trabajador AS id, E.Nombre_Completo AS name, 'trabajador' AS role
+            FROM Trabajadores W
+            JOIN Empleados E ON E.ID_Empleado = W.ID_Empleado
+            WHERE W.ID_Trabajador = %s
+            """,
+            (saved_id,),
+            one=True,
+        )
+
+    if user_data:
+        st.session_state.user = user_data
 # -----------------------------------------------------------------------------
 # MANEJO DE SESIÓN
 # -----------------------------------------------------------------------------
@@ -132,7 +166,23 @@ def render_login():
                 st.rerun()
             else:
                 st.error("❌ Código, PIN o perfil incorrecto.")
+# -----------------------------------------------------------------------------
+# INTERFAZ: Guardar Parametros de Inicio de Sesion
+# -----------------------------------------------------------------------------
 
+# Ejemplo en el botón de Login exitoso:
+st.session_state.user = user_found
+
+# Guardar ID y Rol en la URL para persisitir tras F5
+st.query_params["user_id"] = str(user_found["id"])
+st.query_params["role"] = user_found["role"]
+
+st.rerun()
+
+if st.sidebar.button("Cerrar Sesión"):
+    st.session_state.clear()
+    st.query_params.clear()  # Limpia los parámetros de la URL
+    st.rerun()
 # -----------------------------------------------------------------------------
 # VISTAS DE EMPLEADO
 # -----------------------------------------------------------------------------

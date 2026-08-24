@@ -198,7 +198,7 @@ def render_employee_view():
 
         attendance = query(
             """
-            SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS exit
+            SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS `exit`
             FROM Asistencia
             WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = %s
             ORDER BY ID_Asistencia DESC
@@ -287,9 +287,9 @@ def render_employee_view():
                 with st.expander(
                     f"📌 {task['project']} - [{task['state']}]"
                 ):
-                    st.write(f"*Descripción:* {task['description']}")
+                    st.write(f"**Descripción:** {task['description']}")
                     st.write(
-                        f"*Observaciones:* {task['notes'] or 'Sin observaciones'}"
+                        f"**Observaciones:** {task['notes'] or 'Sin observaciones'}"
                     )
 
                     new_state = st.selectbox(
@@ -485,6 +485,8 @@ def render_admin_view():
             "SELECT ID_Proyecto AS ID, Nombre_Proyecto AS Proyecto, Area_Departamento AS Área FROM Proyectos ORDER BY Nombre_Proyecto"
         )
         st.dataframe(projs, use_container_width=True)
+
+
 # -----------------------------------------------------------------------------
 # CONTROL DE FLUJO PRINCIPAL
 # -----------------------------------------------------------------------------
@@ -495,11 +497,11 @@ else:
     with st.sidebar:
         st.write(f"👤 **{st.session_state.user['name']}**")
         st.write(f"💼 Rol: `{st.session_state.user['role']}`")
-        
+
         st.divider()
 
         # --- SISTEMA DE NOTIFICACIONES ---
-        today_date = today_local()  # <--- Cambia now_local().date() por today_local()
+        today_date = today_local()
 
         # 1. Consultar base de datos según el rol
         if st.session_state.user["role"] == "Empleado":
@@ -512,7 +514,7 @@ else:
                 WHERE T.ID_Trabajador = %s AND T.Estado_Tarea = 'Asignada' AND T.Fecha = %s
                 ORDER BY T.ID_Tarea DESC
                 """,
-                (st.session_state.user["id"], today_date)
+                (st.session_state.user["id"], today_date),
             )
         elif st.session_state.user["role"] == "Administrador":
             # Tareas completadas hoy por cualquier empleado
@@ -526,29 +528,33 @@ else:
                 WHERE T.Estado_Tarea = 'Completada' AND T.Fecha = %s
                 ORDER BY T.ID_Tarea DESC
                 """,
-                (today_date,)
+                (today_date,),
             )
         else:
             notificaciones = []
 
         # 2. Renderizar el botón/desplegable de la campana
         cantidad = len(notificaciones) if notificaciones else 0
-        titulo_campana = f"🔔 Notificaciones ({cantidad})" if cantidad > 0 else "🔔 Notificaciones"
+        titulo_campana = (
+            f"🔔 Notificaciones ({cantidad})"
+            if cantidad > 0
+            else "🔔 Notificaciones"
+        )
 
         with st.expander(titulo_campana):
             if cantidad > 0:
                 for notif in notificaciones:
                     if st.session_state.user["role"] == "Empleado":
-                        # Mensaje visual para el Empleado
                         st.info(f"**📌 {notif['project']}**\n\n{notif['descr']}")
                     else:
-                        # Mensaje visual para el Administrador
-                        st.success(f"**✅ {notif['emp']} completó:**\n\n{notif['project']} - {notif['descr']}")
+                        st.success(
+                            f"**✅ {notif['emp']} completó:**\n\n{notif['project']} - {notif['descr']}"
+                        )
             else:
                 st.write("No hay notificaciones nuevas para hoy.")
 
         st.divider()
-        
+
         # --- CERRAR SESIÓN ---
         if st.button("🚪 Cerrar Sesión", use_container_width=True):
             st.session_state.clear()

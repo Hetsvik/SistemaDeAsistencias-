@@ -122,8 +122,18 @@ CREATE TABLE `Actividades` (
         REFERENCES `Tareas` (`ID_Tarea`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE INDEX `IX_Actividades_Tarea_Fecha`
-    ON `Actividades` (`ID_Tarea`, `Fecha_Actividad`);
+CREATE TABLE IF NOT EXISTS Comentarios_Tarea (
+    ID_Comentario INT AUTO_INCREMENT PRIMARY KEY,
+    ID_Tarea INT NOT NULL,
+    Autor VARCHAR(150) NOT NULL,
+    Rol ENUM('Administrador', 'Empleado') NOT NULL,
+    Mensaje TEXT NOT NULL,
+    Fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ID_Tarea) REFERENCES Tareas(ID_Tarea) ON DELETE CASCADE
+);
+
+CREATE INDEX `IX_Comentarios_Tarea_Busqueda`
+    ON `Comentarios_Tarea` (`ID_Tarea`, `Fecha`);
 
 -- =============================================================================
 -- DATOS INICIALES

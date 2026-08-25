@@ -1,3 +1,7 @@
+/* =========================================================
+   SISTEMA DE ESTILOS CORPORATIVOS - CONTROL DE ASISTENCIA
+   ========================================================= */
+
 :root {
   --primary: #1E3A8A;
   --primary-hover: #1D4ED8;
@@ -9,6 +13,9 @@
   --border-color: #E2E8F0;
   --sidebar-bg: #0F172A;
   --sidebar-hover: #1E293B;
+  --sidebar-border: #334155;
+  --sidebar-text: #F8FAFC;
+  --sidebar-text-muted: #94A3B8;
   --success: #10B981;
   --success-bg: #D1FAE5;
   --danger: #EF4444;
@@ -130,7 +137,7 @@ button {
 .role-card strong { display: block; font-size: 15px; color: var(--text-dark); }
 .role-card small { display: block; color: var(--text-muted); font-size: 12px; margin-top: 4px; }
 
-/* --- FORMULARIOS --- */
+/* --- FORMULARIOS PRINCIPALES --- */
 form { display: grid; gap: 16px; margin-top: 20px; }
 label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: #334155; }
 
@@ -187,8 +194,8 @@ input:focus, select:focus {
   inset: 0 auto 0 0;
   width: 260px;
   padding: 24px 16px;
-  background: var(--sidebar-bg);
-  color: #FFF;
+  background-color: var(--sidebar-bg);
+  color: var(--sidebar-text);
   display: flex;
   flex-direction: column;
   z-index: 10;
@@ -204,11 +211,20 @@ input:focus, select:focus {
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
+.profile strong {
+  color: #FFFFFF;
+}
+
+.profile small {
+  color: var(--sidebar-text-muted);
+}
+
 .avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   background: var(--primary-hover);
+  color: #FFFFFF;
   display: grid;
   place-items: center;
   font-weight: 700;
@@ -221,32 +237,86 @@ nav { display: grid; gap: 6px; }
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  color: #94A3B8;
+  color: var(--sidebar-text-muted);
   background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   font-weight: 500;
   text-align: left;
+  transition: all 0.2s ease;
 }
 
 .nav-link:hover, .nav-link.active {
   color: #FFF;
   background: var(--sidebar-hover);
+  border-color: var(--sidebar-border);
 }
 
-.logout {
-  margin-top: auto;
-  padding: 12px 14px;
-  color: #FCA5A5;
-  background: transparent;
+/* --- CORRECCIÓN DE CONTRASTE Y CONTENIDO EN BARRA LATERAL (SIDEBAR) --- */
+.sidebar input,
+.sidebar select,
+.sidebar .role-badge,
+.sidebar .role-input {
+  background-color: var(--sidebar-hover) !important;
+  color: var(--sidebar-text) !important;
+  border: 1px solid var(--sidebar-border) !important;
+  padding: 6px 10px;
   border-radius: var(--radius-sm);
-  text-align: left;
+  font-size: 13px;
+  outline: none;
 }
-.logout:hover { background: rgba(239, 68, 68, 0.15); }
 
+.sidebar label {
+  color: var(--sidebar-text-muted) !important;
+}
+
+.sidebar .logout,
+.sidebar .bottom-button,
+.sidebar button:not(.nav-link) {
+  background-color: var(--sidebar-hover) !important;
+  color: #FCA5A5 !important;
+  border: 1px solid var(--sidebar-border) !important;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: auto;
+  transition: all 0.2s ease;
+}
+
+.sidebar .logout:hover,
+.sidebar .bottom-button:hover,
+.sidebar button:not(.nav-link):hover {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  color: #EF4444 !important;
+  border-color: #EF4444 !important;
+}
+
+/* --- CONTENIDO PRINCIPAL --- */
 .content {
   margin-left: 260px;
   width: calc(100% - 260px);
   padding: 36px 48px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.session-badge {
+  background: var(--success-bg);
+  color: var(--success);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 /* --- TARJETAS Y PANELES --- */
@@ -263,7 +333,7 @@ nav { display: grid; gap: 6px; }
 }
 
 .welcome-card h3 { font-size: 24px; font-weight: 700; margin: 4px 0; }
-.clock { font-size: 32px; font-weight: 800; font-mono: monospace; }
+.clock { font-size: 32px; font-weight: 800; font-family: monospace; }
 
 .panel {
   background: var(--bg-card);

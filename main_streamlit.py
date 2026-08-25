@@ -10,45 +10,77 @@ from zoneinfo import ZoneInfo
 #from googleapiclient.discovery import build
 #from googleapiclient.http import MediaIoBaseUpload
 
-# Configuración de página
+import streamlit as st
+
+# 1. Configuración básica de la página
 st.set_page_config(
-    page_title="Control de Asistencia Corporativo",
+    page_title="Control de Asistencia",
     page_icon="🏢",
-    layout="wide",
+    layout="wide"
 )
 
-# Estilos CSS personalizados inyectados directamente en Streamlit
+# 2. Inyección de estilos CSS específicos para componentes de Streamlit
 st.markdown("""
     <style>
-    /* Estilos corporativos para Streamlit */
+    /* Fondo principal de la aplicación */
     .stAppViewContainer {
-        background-color: #F8FAFC;
+        background-color: #F8FAFC !important;
     }
+    
+    /* Fondo del Sidebar (Barra Lateral) */
     [data-testid="stSidebar"] {
         background-color: #0F172A !important;
-        color: #FFFFFF;
     }
-    [data-testid="stSidebar"] * {
+
+    /* Forzar texto visible en todo el Sidebar */
+    [data-testid="stSidebar"] *, 
+    [data-testid="stSidebar"] label, 
+    [data-testid="stSidebar"] p, 
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] div {
         color: #F8FAFC !important;
     }
-    .stButton>button[kind="primary"] {
-        background-color: #1E3A8A !important;
-        border: none !important;
+
+    /* Corrección de cajas de texto / Inputs / Selects dentro del Sidebar */
+    [data-testid="stSidebar"] input,
+    [data-testid="stSidebar"] div[data-baseweb="input"],
+    [data-testid="stSidebar"] div[data-baseweb="select"] {
+        background-color: #1E293B !important;
+        color: #FFFFFF !important;
+        border: 1px solid #334155 !important;
+        border-radius: 8px !important;
+    }
+
+    /* Corrección de TODOS los botones dentro del Sidebar (incluyendo el botón inferior) */
+    [data-testid="stSidebar"] button,
+    [data-testid="stSidebar"] .stButton > button {
+        background-color: #1E293B !important;
+        color: #FFFFFF !important;
+        border: 1px solid #334155 !important;
         border-radius: 8px !important;
         font-weight: 600 !important;
+        width: 100% !important;
+        transition: all 0.2s ease !important;
     }
-    .stButton>button[kind="primary"]:hover {
+
+    /* Estado hover de los botones en el Sidebar */
+    [data-testid="stSidebar"] button:hover,
+    [data-testid="stSidebar"] .stButton > button:hover {
         background-color: #1D4ED8 !important;
+        color: #FFFFFF !important;
+        border-color: #1D4ED8 !important;
     }
-    /* Estilo del contenedor de la marca en la esquina */
-    .brand-header {
-        display: flex;
-        align-items: center;
-        padding: 10px 0px 20px 0px;
+
+    /* Corrección del contenedor de Notificaciones (Expander) */
+    [data-testid="stSidebar"] [data-testid="stExpander"] {
+        background-color: #1E293B !important;
+        border: 1px solid #334155 !important;
+        border-radius: 8px !important;
     }
-    .brand-header img {
-        max-width: 180px;
-        height: auto;
+
+    /* Ajuste y bordes suavizados para el logo */
+    [data-testid="stSidebar"] [data-testid="stImage"] img {
+        border-radius: 12px !important;
     }
     </style>
 """, unsafe_allow_html=True)

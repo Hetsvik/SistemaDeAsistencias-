@@ -13,27 +13,79 @@ st.set_page_config(
 # Estilos CSS personalizados inyectados directamente en Streamlit
 st.markdown("""
     <style>
-    /* Estilos corporativos para Streamlit */
+    /* Fondo principal de la aplicación */
     .stAppViewContainer {
         background-color: #F8FAFC;
     }
+    
+    /* ================= SIDEBAR ================= */
     [data-testid="stSidebar"] {
         background-color: #0F172A !important;
-        color: #FFFFFF;
     }
-    [data-testid="stSidebar"] * {
+    /* Texto general del sidebar a blanco (evitando romper botones o códigos) */
+    [data-testid="stSidebar"] p, 
+    [data-testid="stSidebar"] span, 
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] div[data-testid="stText"] {
         color: #F8FAFC !important;
     }
-    .stButton>button[kind="primary"] {
+    /* Arreglo para la etiqueta del Rol (código markdown) */
+    [data-testid="stSidebar"] code {
+        color: #0F172A !important;
+        background-color: #E2E8F0 !important;
+        font-weight: 700 !important;
+        padding: 4px 8px !important;
+        border-radius: 4px !important;
+    }
+    /* Arreglo para el botón "Cerrar Sesión" en el Sidebar */
+    [data-testid="stSidebar"] .stButton > button {
+        background-color: #1E293B !important;
+        border: 1px solid #334155 !important;
+    }
+    [data-testid="stSidebar"] .stButton > button * {
+        color: #FCA5A5 !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background-color: rgba(239, 68, 68, 0.15) !important;
+        border-color: #EF4444 !important;
+    }
+    [data-testid="stSidebar"] .stButton > button:hover * {
+        color: #EF4444 !important;
+    }
+
+    /* ================= BOTONES PRINCIPALES ================= */
+    /* Ej: Registrar Entrada (Azul Corporativo) */
+    .stButton > button[kind="primary"] {
         background-color: #1E3A8A !important;
         border: none !important;
         border-radius: 8px !important;
+    }
+    .stButton > button[kind="primary"] * {
+        color: #FFFFFF !important;
         font-weight: 600 !important;
     }
-    .stButton>button[kind="primary"]:hover {
+    .stButton > button[kind="primary"]:hover {
         background-color: #1D4ED8 !important;
     }
-    /* Estilo del contenedor de la marca en la esquina */
+
+    /* ================= BOTONES SECUNDARIOS ================= */
+    /* Ej: Registrar Salida (Blanco con borde azul) */
+    .stButton > button[kind="secondary"] {
+        background-color: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 8px !important;
+    }
+    .stButton > button[kind="secondary"] * {
+        color: #1E3A8A !important;
+        font-weight: 600 !important;
+    }
+    .stButton > button[kind="secondary"]:hover {
+        background-color: #EFF6FF !important;
+        border-color: #1E3A8A !important;
+    }
+    
+    /* Logo de la empresa */
     .brand-header {
         display: flex;
         align-items: center;

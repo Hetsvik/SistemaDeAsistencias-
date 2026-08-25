@@ -10,12 +10,57 @@ from zoneinfo import ZoneInfo
 #from googleapiclient.discovery import build
 #from googleapiclient.http import MediaIoBaseUpload
 
-# Configuración de la interfaz
+# Configuración de página
 st.set_page_config(
-    page_title="Control de Asistencia y Actividades",
-    page_icon="⏱️",
+    page_title="Control de Asistencia Corporativo",
+    page_icon="🏢",
     layout="wide",
 )
+
+# Estilos CSS personalizados inyectados directamente en Streamlit
+st.markdown("""
+    <style>
+    /* Estilos corporativos para Streamlit */
+    .stAppViewContainer {
+        background-color: #F8FAFC;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #0F172A !important;
+        color: #FFFFFF;
+    }
+    [data-testid="stSidebar"] * {
+        color: #F8FAFC !important;
+    }
+    .stButton>button[kind="primary"] {
+        background-color: #1E3A8A !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+    }
+    .stButton>button[kind="primary"]:hover {
+        background-color: #1D4ED8 !important;
+    }
+    /* Estilo del contenedor de la marca en la esquina */
+    .brand-header {
+        display: flex;
+        align-items: center;
+        padding: 10px 0px 20px 0px;
+    }
+    .brand-header img {
+        max-width: 180px;
+        height: auto;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Render del Logo en la esquina del Sidebar
+with st.sidebar:
+    # Asegúrate de colocar tu archivo 'logo.png' en la raíz de la aplicación
+    try:
+        st.image("logo.png", use_container_width=True)
+    except Exception:
+        st.markdown("### **EMPRESA**")
+    st.divider()
 
 
 def now_local():

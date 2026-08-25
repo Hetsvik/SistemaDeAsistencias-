@@ -137,10 +137,10 @@ with st.sidebar:
                     🏢 Construcciones Asesoramiento<br>Técnico & Legal S.A.C.
                 </div>
                 <div class="sidebar-company-info">
-                    📞 +51 999 999 999
+                    📞 +51 981 173 251
                 </div>
                 <div class="sidebar-company-info">
-                    ✉️ contacto@empresa.com
+                    ✉️ arqshuan@yahoo.es
                 </div>
             </div>
         """, unsafe_allow_html=True)

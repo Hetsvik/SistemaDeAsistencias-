@@ -1,16 +1,17 @@
 import io
-from datetime import datetime
-import mysql.connector
 import os
-import streamlit as st
+from datetime import datetime
 from zoneinfo import ZoneInfo
-
-# Librerías de Google Drive API
-#from google.oauth2 import service_account
-#from googleapiclient.discovery import build
-#from googleapiclient.http import MediaIoBaseUpload
-
+import mysql.connector
 import streamlit as st
+
+# Librerías de Google Drive API (descomentadas)
+try:
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaIoBaseUpload
+except ImportError:
+    pass
 
 # 1. Configuración básica de la página
 st.set_page_config(
@@ -51,7 +52,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* Corrección de TODOS los botones dentro del Sidebar (incluyendo el botón inferior) */
+    /* Corrección de TODOS los botones dentro del Sidebar */
     [data-testid="stSidebar"] button,
     [data-testid="stSidebar"] .stButton > button {
         background-color: #1E293B !important;
@@ -84,15 +85,6 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-
-# Render del Logo en la esquina del Sidebar
-with st.sidebar:
-    # Asegúrate de colocar tu archivo 'logo.png' en la raíz de la aplicación
-    try:
-        st.image("logo.png", use_container_width=True)
-    except Exception:
-        st.markdown("### **EMPRESA**")
-    st.divider()
 
 
 def now_local():
@@ -192,8 +184,9 @@ def upload_to_google_drive(uploaded_file, worker_name, task_id):
         st.error(f"❌ Error al subir el archivo a Google Drive: {e}")
         return None
 
+
 # -----------------------------------------------------------------------------
-# LÓGICA DE COMENTARIOS Y CHAT (CLICKUP STYLE)
+# LÓGICA DE COMENTARIOS Y CHAT
 # -----------------------------------------------------------------------------
 def obtener_comentarios(id_tarea):
     """Obtiene el historial de chat de una tarea específica."""
@@ -201,6 +194,7 @@ def obtener_comentarios(id_tarea):
         "SELECT Autor, Rol, Mensaje, Fecha FROM Comentarios_Tarea WHERE ID_Tarea = %s ORDER BY ID_Comentario ASC",
         (id_tarea,),
     )
+
 
 def agregar_comentario(id_tarea, autor, rol, mensaje):
     """Inserta un nuevo mensaje en el hilo de la tarea."""
@@ -218,7 +212,7 @@ if "user" not in st.session_state:
     st.session_state.user = None
 
 if st.session_state.user is None and "user_id" in st.query_params:
-    saved_id = st.query_params["user_id"]
+    saved_id = st.query_params.get("user_id")
     saved_role = st.query_params.get("role")
 
     if saved_role == "Administrador":
@@ -232,7 +226,7 @@ if st.session_state.user is None and "user_id" in st.query_params:
             (saved_id,),
             one=True,
         )
-    elif saved_role == "Empleado":
+    elif saved_role in ("Empleado", "Trabajador"):
         user_data = query(
             """
             SELECT W.ID_Trabajador AS id, E.Nombre_Completo AS name, 'Empleado' AS role
@@ -418,7 +412,7 @@ def render_employee_view():
                 else:
                     st.error("No hay entrada activa para hoy.")
 
-    # TAREAS Y FEEDBACK (CLICKUP STYLE)
+    # TAREAS Y FEEDBACK
     elif st.session_state.emp_nav == "📋 Mis Tareas del Día":
         st.subheader("Tareas de Hoy")
         tasks = query(
@@ -446,7 +440,6 @@ def render_employee_view():
                     st.write(f"**Descripción:** {task['description']}")
                     st.write(f"**Observaciones previas:** {task['notes'] or 'Ninguna'}")
 
-                    # Controles de actualización de tarea
                     col_act1, col_act2 = st.columns([1, 1])
                     with col_act1:
                         new_state = st.selectbox(
@@ -464,7 +457,7 @@ def render_employee_view():
                             "📎 Adjuntar Reporte (Drive)",
                             key=f"file_{task['id']}",
                         )
-                        
+
                     if st.button("Guardar Reporte / Actualizar", key=f"btn_{task['id']}", use_container_width=True):
                         if new_state == "Bloqueada" and not new_notes.strip():
                             st.warning("Debes ingresar una observación si bloqueas la tarea.")
@@ -509,7 +502,6 @@ def render_employee_view():
 
                     st.divider()
 
-                    # Hilo de comunicación interactivo
                     st.markdown("💬 **Feedback y Comunicación**")
                     comentarios = obtener_comentarios(task["id"])
                     chat_container = st.container(height=200)
@@ -542,7 +534,6 @@ def render_admin_view():
         ["📊 Monitoreo y Control", "➕ Asignar Tareas", "👥 Personal", "📁 Proyectos"]
     )
 
-    # MONITOREO ESTILO CLICKUP
     with tab1:
         st.subheader("Asistencia del Día")
         attendance_data = query(
@@ -552,13 +543,13 @@ def render_admin_view():
             FROM Asistencia A
             JOIN Trabajadores W ON W.ID_Trabajador=A.ID_Trabajador
             JOIN Empleados E ON E.ID_Empleado=W.ID_Empleado
-            WHERE A.Fecha_Calculada=CURDATE() ORDER BY A.Fecha_Entrada
+            WHERE DATE(A.Fecha_Entrada)=CURDATE() ORDER BY A.Fecha_Entrada
             """
         )
         st.dataframe(attendance_data, use_container_width=True)
         st.divider()
 
-        st.subheader("📋 Control de Tareas (ClickUp View)")
+        st.subheader("📋 Control de Tareas")
         tasks_monitoreo = query(
             """
             SELECT T.ID_Tarea AS id, E.Nombre_Completo AS emp, P.Nombre_Proyecto AS project, 
@@ -567,20 +558,18 @@ def render_admin_view():
             JOIN Trabajadores W ON W.ID_Trabajador = T.ID_Trabajador
             JOIN Empleados E ON E.ID_Empleado = W.ID_Empleado
             JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
-            WHERE T.Fecha = CURDATE() ORDER BY T.ID_Tarea DESC
+            WHERE DATE(T.Fecha) = CURDATE() ORDER BY T.ID_Tarea DESC
             """
         )
 
         if tasks_monitoreo:
             for task in tasks_monitoreo:
-                # Icono dinámico según estado
                 icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else '📌')
                 
                 with st.expander(f"{icon} {task['project']} | {task['emp']} — [{task['state']}]"):
                     st.write(f"**Descripción:** {task['description']}")
                     st.write(f"**Reporte/Archivos adjuntos:** {task['notes'] or 'Sin reportes enviados'}")
 
-                    # Botones de control rápido para el Jefe
                     col_btn1, col_btn2, col_btn3 = st.columns(3)
                     with col_btn1:
                         if st.button("⏸️ Pausar", key=f"pause_{task['id']}", use_container_width=True):
@@ -597,7 +586,6 @@ def render_admin_view():
 
                     st.divider()
                     
-                    # Hilo de comunicación del lado del administrador
                     st.markdown("💬 **Chat de la Tarea**")
                     comentarios = obtener_comentarios(task["id"])
                     
@@ -620,7 +608,6 @@ def render_admin_view():
         else:
             st.info("No hay tareas registradas hoy.")
 
-    # ASIGNAR TAREAS
     with tab2:
         st.subheader("Nueva Tarea para un Empleado")
         workers = query(
@@ -684,7 +671,6 @@ def render_admin_view():
                         st.success("Tarea asignada exitosamente.")
                         st.rerun()
 
-    # GESTIÓN DE PERSONAL
     with tab3:
         st.subheader("Registrar Nuevo Trabajador")
         with st.form("form_worker"):
@@ -727,7 +713,6 @@ def render_admin_view():
         )
         st.dataframe(people, use_container_width=True)
 
-    # GESTIÓN DE PROYECTOS
     with tab4:
         st.subheader("Registrar Nuevo Proyecto")
         with st.form("form_project"):
@@ -753,12 +738,19 @@ def render_admin_view():
 
 
 # -----------------------------------------------------------------------------
-# CONTROL DE FLUJO PRINCIPAL Y NOTIFICACIONES
+# CONTROL DE FLUJO PRINCIPAL Y NOTIFICACIONES EN SIDEBAR
 # -----------------------------------------------------------------------------
 if st.session_state.user is None:
     render_login()
 else:
     with st.sidebar:
+        # Render del Logo
+        try:
+            st.image("logo.png", use_container_width=True)
+        except Exception:
+            st.markdown("### **EMPRESA**")
+        st.divider()
+
         st.write(f"👤 **{st.session_state.user['name']}**")
         st.write(f"💼 Rol: `{st.session_state.user['role']}`")
         st.divider()
@@ -771,7 +763,7 @@ else:
                 SELECT P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS descr
                 FROM Tareas T
                 JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
-                WHERE T.ID_Trabajador = %s AND T.Estado_Tarea = 'Asignada' AND T.Fecha = %s
+                WHERE T.ID_Trabajador = %s AND T.Estado_Tarea = 'Asignada' AND DATE(T.Fecha) = %s
                 ORDER BY T.ID_Tarea DESC
                 """,
                 (st.session_state.user["id"], today_date),
@@ -785,7 +777,7 @@ else:
                 JOIN Trabajadores W ON W.ID_Trabajador = T.ID_Trabajador
                 JOIN Empleados E ON E.ID_Empleado = W.ID_Empleado
                 JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
-                WHERE T.Estado_Tarea = 'Completada' AND T.Fecha = %s
+                WHERE T.Estado_Tarea = 'Completada' AND DATE(T.Fecha) = %s
                 ORDER BY T.ID_Tarea DESC
                 """,
                 (today_date,),
@@ -793,50 +785,26 @@ else:
         else:
             notificaciones = []
 
-        cantidad = len(notificaciones) if notificaciones else 0
-        titulo_campana = f"🔔 Notificaciones ({cantidad})" if cantidad > 0 else "🔔 Notificaciones"
-
-        with st.expander(titulo_campana):
-            if cantidad > 0:
-                for i, notif in enumerate(notificaciones):
+        count_notif = len(notificaciones) if notificaciones else 0
+        with st.expander(f"🔔 Notificaciones ({count_notif})"):
+            if notificaciones:
+                for n in notificaciones:
                     if st.session_state.user["role"] == "Empleado":
-                        if st.button(
-                            f"📌 {notif['project']}\n\n{notif['descr']}",
-                            key=f"notif_emp_{i}_{notif['project']}",
-                        ):
-                            st.session_state.emp_nav = "📋 Mis Tareas del Día"
-                            st.rerun()
+                        st.write(f"📌 **{n['project']}**: {n['descr']}")
                     else:
-                        es_fuera_de_plazo = bool(
-                            notif.get("notes") and "[ENTREGADO FUERA DE PLAZO]" in notif["notes"]
-                        )
-                        tiene_archivo = bool(
-                            notif.get("notes") and "drive.google.com" in notif["notes"]
-                        )
-
-                        if es_fuera_de_plazo:
-                            st.error(
-                                f"⚠️ **ENTREGA FUERA DE PLAZO**\n\n"
-                                f"**{notif['emp']}** envió su reporte a destiempo.\n\n"
-                                f"📌 **Proyecto:** {notif['project']}\n"
-                                f"📝 **Tarea:** {notif['descr']}"
-                            )
-                        else:
-                            mensaje = f"✅ **{notif['emp']}** completó a tiempo:\n\n📌 {notif['project']} - {notif['descr']}"
-                            if tiene_archivo:
-                                mensaje += "\n\n📎 *Incluye reporte en Drive*"
-                            st.success(mensaje)
+                        st.write(f"✅ **{n['emp']}** completó: {n['descr']}")
             else:
-                st.write("No hay notificaciones nuevas.")
+                st.info("No hay notificaciones sin leer.")
 
         st.divider()
 
         if st.button("🚪 Cerrar Sesión", use_container_width=True):
-            st.session_state.clear()
+            st.session_state.user = None
             st.query_params.clear()
             st.rerun()
 
-    if st.session_state.user["role"] == "Empleado":
+    # Render de la vista correspondiente
+    if st.session_state.user["role"] in ("Empleado", "Trabajador"):
         render_employee_view()
     elif st.session_state.user["role"] == "Administrador":
         render_admin_view()

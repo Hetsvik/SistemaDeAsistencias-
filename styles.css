@@ -255,8 +255,9 @@ nav { display: grid; gap: 6px; }
 /* --- CORRECCIÓN DE CONTRASTE Y CONTENIDO EN BARRA LATERAL (SIDEBAR) --- */
 .sidebar input,
 .sidebar select,
-.sidebar .role-badge,
-.sidebar .role-input {
+.sidebar .role-input,
+[data-testid="stSidebar"] input,
+[data-testid="stSidebar"] div[data-baseweb="input"] {
   background-color: var(--sidebar-hover) !important;
   color: var(--sidebar-text) !important;
   border: 1px solid var(--sidebar-border) !important;
@@ -266,13 +267,30 @@ nav { display: grid; gap: 6px; }
   outline: none;
 }
 
+/* Estilos específicos para la etiqueta/badge de Rol */
+.sidebar .role-badge,
+.sidebar .role-tag,
+.sidebar code,
+[data-testid="stSidebar"] [data-baseweb="tag"],
+[data-testid="stSidebar"] code {
+  background-color: var(--sidebar-hover) !important;
+  color: #38BDF8 !important;
+  border: 1px solid var(--sidebar-border) !important;
+  padding: 4px 10px !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  display: inline-block;
+}
+
 .sidebar label {
   color: var(--sidebar-text-muted) !important;
 }
 
 .sidebar .logout,
 .sidebar .bottom-button,
-.sidebar button:not(.nav-link) {
+.sidebar button:not(.nav-link),
+[data-testid="stSidebar"] button {
   background-color: var(--sidebar-hover) !important;
   color: #FCA5A5 !important;
   border: 1px solid var(--sidebar-border) !important;
@@ -290,7 +308,8 @@ nav { display: grid; gap: 6px; }
 
 .sidebar .logout:hover,
 .sidebar .bottom-button:hover,
-.sidebar button:not(.nav-link):hover {
+.sidebar button:not(.nav-link):hover,
+[data-testid="stSidebar"] button:hover {
   background-color: rgba(239, 68, 68, 0.15) !important;
   color: #EF4444 !important;
   border-color: #EF4444 !important;

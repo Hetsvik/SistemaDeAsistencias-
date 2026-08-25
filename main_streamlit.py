@@ -6,19 +6,11 @@ import streamlit as st
 from zoneinfo import ZoneInfo
 
 # Librerías de Google Drive API
-<<<<<<< HEAD
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
 # Configuración de página
-=======
-#from google.oauth2 import service_account
-#from googleapiclient.discovery import build
-#from googleapiclient.http import MediaIoBaseUpload
-
-# Configuración de la interfaz
->>>>>>> 4c3c26100fe18cc8b2010f69b951151984a2d343
 st.set_page_config(
     page_title="Control de Asistencia Corporativo",
     page_icon="🏢",
@@ -63,7 +55,6 @@ st.markdown("""
 
 # Render del Logo en la esquina del Sidebar
 with st.sidebar:
-    # Asegúrate de colocar tu archivo 'logo.png' en la raíz de la aplicación
     try:
         st.image("logo.png", use_container_width=True)
     except Exception:
@@ -74,11 +65,9 @@ def now_local():
     """Retorna la fecha y hora actual en zona horaria local (UTC-5)"""
     return datetime.now(ZoneInfo("America/Lima"))
 
-
 def today_local():
     """Retorna únicamente la fecha de hoy en zona horaria local (UTC-5)"""
     return datetime.now(ZoneInfo("America/Lima")).date()
-
 
 # -----------------------------------------------------------------------------
 # CONEXIÓN A BASE DE DATOS Y GOOGLE DRIVE
@@ -96,7 +85,6 @@ def db():
     cur.close()
     return conn
 
-
 def query(sql, params=(), one=False):
     try:
         conn = db()
@@ -109,7 +97,6 @@ def query(sql, params=(), one=False):
     except mysql.connector.Error as e:
         st.error(f"❌ Error SQL en la consulta: {e}")
         st.stop()
-
 
 def execute(sql, params=()):
     try:
@@ -124,7 +111,6 @@ def execute(sql, params=()):
     except mysql.connector.Error as e:
         st.error(f"❌ Error SQL al ejecutar: {e}")
         st.stop()
-
 
 def upload_to_google_drive(uploaded_file, worker_name, task_id):
     """Sube un archivo cargado a Google Drive y devuelve su enlace público"""
@@ -171,20 +157,17 @@ def upload_to_google_drive(uploaded_file, worker_name, task_id):
 # LÓGICA DE COMENTARIOS Y CHAT (CLICKUP STYLE)
 # -----------------------------------------------------------------------------
 def obtener_comentarios(id_tarea):
-    """Obtiene el historial de chat de una tarea específica."""
     return query(
         "SELECT Autor, Rol, Mensaje, Fecha FROM Comentarios_Tarea WHERE ID_Tarea = %s ORDER BY ID_Comentario ASC",
         (id_tarea,),
     )
 
 def agregar_comentario(id_tarea, autor, rol, mensaje):
-    """Inserta un nuevo mensaje en el hilo de la tarea."""
     if mensaje and mensaje.strip():
         execute(
             "INSERT INTO Comentarios_Tarea (ID_Tarea, Autor, Rol, Mensaje) VALUES (%s, %s, %s, %s)",
             (id_tarea, autor, rol, mensaje.strip()),
         )
-
 
 # -----------------------------------------------------------------------------
 # MANEJO DE SESIÓN Y PERSISTENCIA (F5)
@@ -223,7 +206,6 @@ if st.session_state.user is None and "user_id" in st.query_params:
 
     if user_data:
         st.session_state.user = user_data
-
 
 def login(code, pin, role):
     code = code.strip().upper()
@@ -264,7 +246,6 @@ def login(code, pin, role):
 
     return user
 
-
 # -----------------------------------------------------------------------------
 # INTERFAZ: LOGIN
 # -----------------------------------------------------------------------------
@@ -293,7 +274,6 @@ def render_login():
             else:
                 st.error("❌ Código, PIN o perfil incorrecto.")
 
-
 # -----------------------------------------------------------------------------
 # VISTAS DE EMPLEADO
 # -----------------------------------------------------------------------------
@@ -321,7 +301,6 @@ def render_employee_view():
         label_visibility="collapsed",
     )
     st.session_state.emp_nav = selected_tab
-
     st.divider()
 
     # CONTROL DE ASISTENCIA
@@ -339,10 +318,7 @@ def render_employee_view():
             one=True,
         )
 
-        # --- LÓGICA DE SEÑALIZACIÓN (9:00 + 20 min tolerancia) ---
         from datetime import time as dtime
-        
-        estado_msg = "⚪ No te has presentado hoy"
         
         if attendance and attendance.get("entry"):
             hora_entrada = attendance["entry"].time()
@@ -354,30 +330,17 @@ def render_employee_view():
                 st.error(f"🔴 **Tardanza:** Registraste tu entrada fuera del límite de las 09:20.")
         else:
             st.warning(f"⚪ **Pendiente:** Aún no has registrado tu entrada de hoy.")
-        # ---------------------------------------------------------
 
         col_a, col_b = st.columns(2)
         with col_a:
             st.metric(
                 "Entrada Registrada",
-<<<<<<< HEAD
-                str(attendance["entry"].strftime("%H:%M:%S"))
-=======
-                str(attendance["entry"])
->>>>>>> 4c3c26100fe18cc8b2010f69b951151984a2d343
-                if attendance and attendance.get("entry")
-                else "Pendiente",
+                str(attendance["entry"].strftime("%H:%M:%S")) if attendance and attendance.get("entry") else "Pendiente",
             )
         with col_b:
             st.metric(
                 "Salida Registrada",
-<<<<<<< HEAD
-                str(attendance["salida"].strftime("%H:%M:%S"))
-=======
-                str(attendance["salida"])
->>>>>>> 4c3c26100fe18cc8b2010f69b951151984a2d343
-                if attendance and attendance.get("salida")
-                else "Pendiente",
+                str(attendance["salida"].strftime("%H:%M:%S")) if attendance and attendance.get("salida") else "Pendiente",
             )
 
         st.divider()
@@ -418,7 +381,7 @@ def render_employee_view():
                 else:
                     st.error("No hay entrada activa para hoy.")
 
-    # TAREAS Y FEEDBACK (CLICKUP STYLE)
+    # TAREAS Y FEEDBACK
     elif st.session_state.emp_nav == "📋 Mis Tareas del Día":
         st.subheader("Tareas de Hoy")
         tasks = query(
@@ -446,7 +409,6 @@ def render_employee_view():
                     st.write(f"**Descripción:** {task['description']}")
                     st.write(f"**Observaciones previas:** {task['notes'] or 'Ninguna'}")
 
-                    # Controles de actualización de tarea
                     col_act1, col_act2 = st.columns([1, 1])
                     with col_act1:
                         new_state = st.selectbox(
@@ -464,11 +426,7 @@ def render_employee_view():
                             "📎 Adjuntar Reporte (Drive)",
                             key=f"file_{task['id']}",
                         )
-<<<<<<< HEAD
                         
-=======
-
->>>>>>> 4c3c26100fe18cc8b2010f69b951151984a2d343
                     if st.button("Guardar Reporte / Actualizar", key=f"btn_{task['id']}", use_container_width=True):
                         if new_state == "Bloqueada" and not new_notes.strip():
                             st.warning("Debes ingresar una observación si bloqueas la tarea.")
@@ -492,9 +450,7 @@ def render_employee_view():
                                 limit_dt = (
                                     task["end_time"]
                                     if isinstance(task["end_time"], datetime)
-                                    else datetime.strptime(
-                                        str(task["end_time"]), "%Y-%m-%d %H:%M:%S"
-                                    )
+                                    else datetime.strptime(str(task["end_time"]), "%Y-%m-%d %H:%M:%S")
                                 )
                                 curr_dt = now_local().replace(tzinfo=None)
 
@@ -512,8 +468,6 @@ def render_employee_view():
                             st.rerun()
 
                     st.divider()
-
-                    # Hilo de comunicación interactivo
                     st.markdown("💬 **Feedback y Comunicación**")
                     comentarios = obtener_comentarios(task["id"])
                     chat_container = st.container(height=200)
@@ -535,7 +489,6 @@ def render_employee_view():
         else:
             st.info("No tienes tareas asignadas para el día de hoy.")
 
-
 # -----------------------------------------------------------------------------
 # VISTAS DE ADMINISTRADOR
 # -----------------------------------------------------------------------------
@@ -550,8 +503,8 @@ def render_admin_view():
     with tab1:
         st.subheader("Asistencia del Día")
         
-        # LEFT JOIN para traer a todos los trabajadores activos, hayan marcado o no
-        attendance_data = query(
+        # LEFT JOIN para traer a todos los trabajadores activos
+        attendance_raw = query(
             """
             SELECT E.Nombre_Completo AS Empleado, 
                    W.Codigo_Trabajador AS Codigo,
@@ -565,26 +518,37 @@ def render_admin_view():
             """
         )
 
-        # --- LÓGICA DE SEÑALIZACIÓN Y ESTADOS ---
         from datetime import time as dtime
         limite_tolerancia = dtime(9, 20, 0)
         
-        for row in attendance_data:
-            if row["Entrada"] is None:
-                row["Estado"] = "⚪ Ausente"
-            else:
-                hora_entrada = row["Entrada"].time()
-                if hora_entrada <= limite_tolerancia:
-                    row["Estado"] = "🟢 A tiempo"
-                else:
-                    row["Estado"] = "🔴 Tardanza"
-            
-            # Formateamos las fechas para que se vean más limpias en la tabla
-            row["Entrada"] = row["Entrada"].strftime("%H:%M:%S") if row["Entrada"] else "—"
-            row["Salida"] = row["Salida"].strftime("%H:%M:%S") if row["Salida"] else "—"
-        # ----------------------------------------
+        tabla_final = []
+        if attendance_raw:
+            for row in attendance_raw:
+                entrada_raw = row["Entrada"]
+                salida_raw = row["Salida"]
 
-        st.dataframe(attendance_data, use_container_width=True)
+                if entrada_raw is None:
+                    estado = "⚪ Ausente"
+                    hora_entrada_str = "—"
+                else:
+                    hora_val = entrada_raw.time() if hasattr(entrada_raw, 'time') else entrada_raw
+                    if hora_val <= limite_tolerancia:
+                        estado = "🟢 A tiempo"
+                    else:
+                        estado = "🔴 Tardanza"
+                    hora_entrada_str = entrada_raw.strftime("%H:%M:%S") if hasattr(entrada_raw, 'strftime') else str(entrada_raw)
+
+                hora_salida_str = salida_raw.strftime("%H:%M:%S") if (salida_raw and hasattr(salida_raw, 'strftime')) else "—"
+
+                tabla_final.append({
+                    "Empleado": row["Empleado"],
+                    "Código": row["Codigo"],
+                    "Entrada": hora_entrada_str,
+                    "Salida": hora_salida_str,
+                    "Estado": estado
+                })
+
+        st.dataframe(tabla_final, use_container_width=True)
         st.divider()
 
         st.subheader("📋 Control de Tareas (ClickUp View)")
@@ -602,18 +566,12 @@ def render_admin_view():
 
         if tasks_monitoreo:
             for task in tasks_monitoreo:
-                # Icono dinámico según estado
                 icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else '📌')
-<<<<<<< HEAD
                 
-=======
-
->>>>>>> 4c3c26100fe18cc8b2010f69b951151984a2d343
                 with st.expander(f"{icon} {task['project']} | {task['emp']} — [{task['state']}]"):
                     st.write(f"**Descripción:** {task['description']}")
                     st.write(f"**Reporte/Archivos adjuntos:** {task['notes'] or 'Sin reportes enviados'}")
 
-                    # Botones de control rápido para el Jefe
                     col_btn1, col_btn2, col_btn3 = st.columns(3)
                     with col_btn1:
                         if st.button("⏸️ Pausar", key=f"pause_{task['id']}", use_container_width=True):
@@ -629,19 +587,9 @@ def render_admin_view():
                             st.rerun()
 
                     st.divider()
-<<<<<<< HEAD
-                    
-                    # Hilo de comunicación del lado del administrador
                     st.markdown("💬 **Chat de la Tarea**")
                     comentarios = obtener_comentarios(task["id"])
                     
-=======
-
-                    # Hilo de comunicación del lado del administrador
-                    st.markdown("💬 **Chat de la Tarea**")
-                    comentarios = obtener_comentarios(task["id"])
-
->>>>>>> 4c3c26100fe18cc8b2010f69b951151984a2d343
                     chat_container = st.container(height=200)
                     with chat_container:
                         if comentarios:
@@ -791,7 +739,6 @@ def render_admin_view():
         st.subheader("Lista de Proyectos")
         projs = query("SELECT ID_Proyecto AS ID, Nombre_Proyecto AS Proyecto, Area_Departamento AS Área FROM Proyectos ORDER BY Nombre_Proyecto")
         st.dataframe(projs, use_container_width=True)
-
 
 # -----------------------------------------------------------------------------
 # CONTROL DE FLUJO PRINCIPAL Y NOTIFICACIONES

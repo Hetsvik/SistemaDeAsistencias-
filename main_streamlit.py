@@ -1,14 +1,7 @@
-import io
 from datetime import datetime
 import mysql.connector
-import os
 import streamlit as st
 from zoneinfo import ZoneInfo
-
-# Librerías de Google Drive API
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
 
 # Configuración de página
 st.set_page_config(
@@ -70,7 +63,7 @@ def today_local():
     return datetime.now(ZoneInfo("America/Lima")).date()
 
 # -----------------------------------------------------------------------------
-# CONEXIÓN A BASE DE DATOS Y GOOGLE DRIVE
+# CONEXIÓN A BASE DE DATOS
 # -----------------------------------------------------------------------------
 def db():
     conn = mysql.connector.connect(
@@ -111,47 +104,6 @@ def execute(sql, params=()):
     except mysql.connector.Error as e:
         st.error(f"❌ Error SQL al ejecutar: {e}")
         st.stop()
-
-def upload_to_google_drive(uploaded_file, worker_name, task_id):
-    """Sube un archivo cargado a Google Drive y devuelve su enlace público"""
-    try:
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        scopes = ["https://www.googleapis.com/auth/drive.file"]
-        creds = service_account.Credentials.from_service_account_info(
-            creds_dict, scopes=scopes
-        )
-
-        service = build("drive", "v3", credentials=creds)
-        folder_id = st.secrets["google_drive"].get("folder_id", None)
-
-        file_extension = os.path.splitext(uploaded_file.name)[1]
-        custom_file_name = f"Reporte_Tarea_{task_id}_{worker_name.replace(' ', '_')}{file_extension}"
-
-        file_metadata = {"name": custom_file_name}
-        if folder_id:
-            file_metadata["parents"] = [folder_id]
-
-        media = MediaIoBaseUpload(
-            io.BytesIO(uploaded_file.getvalue()),
-            mimetype=uploaded_file.type,
-            resumable=True,
-        )
-
-        drive_file = (
-            service.files()
-            .create(body=file_metadata, media_body=media, fields="id, webViewLink")
-            .execute()
-        )
-
-        service.permissions().create(
-            fileId=drive_file.get("id"),
-            body={"role": "reader", "type": "anyone"},
-        ).execute()
-
-        return drive_file.get("webViewLink")
-    except Exception as e:
-        st.error(f"❌ Error al subir el archivo a Google Drive: {e}")
-        return None
 
 # -----------------------------------------------------------------------------
 # LÓGICA DE COMENTARIOS Y CHAT (CLICKUP STYLE)
@@ -409,39 +361,25 @@ def render_employee_view():
                     st.write(f"**Descripción:** {task['description']}")
                     st.write(f"**Observaciones previas:** {task['notes'] or 'Ninguna'}")
 
-                    col_act1, col_act2 = st.columns([1, 1])
+                    col_act1, col_act2 = st.columns(2)
                     with col_act1:
                         new_state = st.selectbox(
                             "Actualizar Estado",
                             ["Asignada", "En Progreso", "Completada", "Bloqueada"],
                             key=f"st_{task['id']}",
                         )
+                    with col_act2:
                         new_notes = st.text_input(
                             "Observaciones adicionales (Opcional)",
                             value="",
                             key=f"nt_{task['id']}",
                         )
-                    with col_act2:
-                        uploaded_file = st.file_uploader(
-                            "📎 Adjuntar Reporte (Drive)",
-                            key=f"file_{task['id']}",
-                        )
-                        
-                    if st.button("Guardar Reporte / Actualizar", key=f"btn_{task['id']}", use_container_width=True):
+
+                    if st.button("Actualizar Tarea", key=f"btn_{task['id']}", use_container_width=True):
                         if new_state == "Bloqueada" and not new_notes.strip():
                             st.warning("Debes ingresar una observación si bloqueas la tarea.")
                         else:
                             final_notes = task["notes"] or ""
-
-                            if uploaded_file is not None:
-                                with st.spinner("Subiendo reporte a Google Drive..."):
-                                    drive_url = upload_to_google_drive(
-                                        uploaded_file, user["name"], task["id"]
-                                    )
-                                    if drive_url:
-                                        file_tag = f"\n📁 [Ver Reporte en Drive]({drive_url})"
-                                        final_notes += f" {file_tag}"
-                                        st.success("☁️ Archivo subido exitosamente a Google Drive.")
 
                             if new_notes.strip():
                                 final_notes += f"\nNote: {new_notes.strip()}"
@@ -687,7 +625,7 @@ def render_admin_view():
                 if not all([name, position, code, pin]):
                     st.warning("Completa todos los datos.")
                 elif len(pin) != 4 or not pin.isdigit():
-                    st.warning("El PIN debe ser estrictamente de 4 dígitos numéricos.")
+                    st.warning("El PIN debe ser strictly de 4 dígitos numéricos.")
                 else:
                     try:
                         emp_id, _ = execute(
@@ -798,10 +736,6 @@ else:
                         es_fuera_de_plazo = bool(
                             notif.get("notes") and "[ENTREGADO FUERA DE PLAZO]" in notif["notes"]
                         )
-                        tiene_archivo = bool(
-                            notif.get("notes") and "drive.google.com" in notif["notes"]
-                        )
-
                         if es_fuera_de_plazo:
                             st.error(
                                 f"⚠️ **ENTREGA FUERA DE PLAZO**\n\n"
@@ -811,8 +745,6 @@ else:
                             )
                         else:
                             mensaje = f"✅ **{notif['emp']}** completó a tiempo:\n\n📌 {notif['project']} - {notif['descr']}"
-                            if tiene_archivo:
-                                mensaje += "\n\n📎 *Incluye reporte en Drive*"
                             st.success(mensaje)
             else:
                 st.write("No hay notificaciones nuevas.")

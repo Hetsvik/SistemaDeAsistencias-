@@ -15,7 +15,8 @@ button { cursor: pointer; border: 0; }
 .hidden { display: none !important; }
 .login-shell { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: radial-gradient(circle at 15% 15%, #dae7ff 0, transparent 27%), linear-gradient(135deg, #f6f8fd, #edf2fc); }
 .login-card { width: min(100%, 510px); padding: 46px; background: #fff; border: 1px solid #e4eaf5; border-radius: 22px; box-shadow: 0 24px 70px #1f3b7020; }
-.brand-mark { display: grid; width: 46px; height: 46px; place-items: center; color: #fff; background: var(--blue); border-radius: 13px; font-size: 25px; }
+.brand-logo { height: 48px; width: auto; display: block; margin-bottom: 12px; object-fit: contain; }
+.sidebar-logo { height: 32px; width: auto; vertical-align: middle; margin-right: 8px; object-fit: contain; }
 .eyebrow { margin: 8px 0; color: #66748b; font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
 .login-card h1 { margin: 8px 0 10px; font-size: 30px; line-height: 1.15; }
 .muted, .hint { color: var(--muted); }
@@ -46,7 +47,7 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #2f
 .text-button { padding: 0; color: var(--blue); background: transparent; }
 .app { display: flex; min-height: 100vh; }
 .sidebar { position: fixed; inset: 0 auto 0 0; display: flex; flex-direction: column; width: 250px; padding: 25px 16px; color: #fff; background: var(--navy); }
-.logo { padding: 0 10px; font-size: 20px; font-weight: 800; }
+.logo { display: flex; align-items: center; padding: 0 10px; font-size: 20px; font-weight: 800; }
 .logo span { color: #75a1ff; }
 .profile { display: flex; gap: 10px; align-items: center; padding: 25px 10px; margin: 23px 0; border-block: 1px solid #ffffff1c; }
 .avatar { display: grid; width: 37px; height: 37px; place-items: center; background: #4e7aff; border-radius: 50%; font-weight: 800; }
@@ -107,42 +108,4 @@ td:last-child, th:last-child { text-align: right; }
   .welcome-card { flex-direction: column; align-items: flex-start; gap: 12px; }
   .login-card { padding: 30px 24px; }
   .session-badge { display: none; }
-}
-/* Ajustes para la imagen del logo en Login */
-.brand-logo {
-  display: block;
-  height: 52px;
-  width: auto;
-  object-fit: contain;
-  margin-bottom: 12px;
-}
-
-/* Ajustes para el logo en el Menú Lateral (Sidebar) */
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 10px;
-  font-size: 20px;
-  font-weight: 800;
-}
-.sidebar-logo {
-  height: 34px;
-  width: auto;
-  object-fit: contain;
-}
-.logo-text span {
-  color: #75a1ff;
-}
-
-/* Ajuste Responsive en pantallas pequeñas */
-@media (max-width: 900px) {
-  .sidebar { width: 67px; padding: 20px 9px; }
-  .logo { padding: 0; justify-content: center; }
-  .logo-text { display: none; }
-  .sidebar-logo { height: 28px; }
-  .profile { padding: 20px 6px; }
-  .profile div:last-child, .nav-link span, .logout { display: none; }
-  .content { width: calc(100% - 67px); margin-left: 67px; padding: 24px; }
-  .three-columns, .two-columns.wide { grid-template-columns: 1fr; }
 }

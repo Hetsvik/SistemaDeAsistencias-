@@ -6,11 +6,19 @@ import streamlit as st
 from zoneinfo import ZoneInfo
 
 # Librerías de Google Drive API
+<<<<<<< HEAD
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
 # Configuración de página
+=======
+#from google.oauth2 import service_account
+#from googleapiclient.discovery import build
+#from googleapiclient.http import MediaIoBaseUpload
+
+# Configuración de la interfaz
+>>>>>>> 4c3c26100fe18cc8b2010f69b951151984a2d343
 st.set_page_config(
     page_title="Control de Asistencia Corporativo",
     page_icon="🏢",
@@ -352,14 +360,22 @@ def render_employee_view():
         with col_a:
             st.metric(
                 "Entrada Registrada",
+<<<<<<< HEAD
                 str(attendance["entry"].strftime("%H:%M:%S"))
+=======
+                str(attendance["entry"])
+>>>>>>> 4c3c26100fe18cc8b2010f69b951151984a2d343
                 if attendance and attendance.get("entry")
                 else "Pendiente",
             )
         with col_b:
             st.metric(
                 "Salida Registrada",
+<<<<<<< HEAD
                 str(attendance["salida"].strftime("%H:%M:%S"))
+=======
+                str(attendance["salida"])
+>>>>>>> 4c3c26100fe18cc8b2010f69b951151984a2d343
                 if attendance and attendance.get("salida")
                 else "Pendiente",
             )
@@ -448,7 +464,11 @@ def render_employee_view():
                             "📎 Adjuntar Reporte (Drive)",
                             key=f"file_{task['id']}",
                         )
+<<<<<<< HEAD
                         
+=======
+
+>>>>>>> 4c3c26100fe18cc8b2010f69b951151984a2d343
                     if st.button("Guardar Reporte / Actualizar", key=f"btn_{task['id']}", use_container_width=True):
                         if new_state == "Bloqueada" and not new_notes.strip():
                             st.warning("Debes ingresar una observación si bloqueas la tarea.")
@@ -584,7 +604,11 @@ def render_admin_view():
             for task in tasks_monitoreo:
                 # Icono dinámico según estado
                 icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else '📌')
+<<<<<<< HEAD
                 
+=======
+
+>>>>>>> 4c3c26100fe18cc8b2010f69b951151984a2d343
                 with st.expander(f"{icon} {task['project']} | {task['emp']} — [{task['state']}]"):
                     st.write(f"**Descripción:** {task['description']}")
                     st.write(f"**Reporte/Archivos adjuntos:** {task['notes'] or 'Sin reportes enviados'}")
@@ -605,11 +629,19 @@ def render_admin_view():
                             st.rerun()
 
                     st.divider()
+<<<<<<< HEAD
                     
                     # Hilo de comunicación del lado del administrador
                     st.markdown("💬 **Chat de la Tarea**")
                     comentarios = obtener_comentarios(task["id"])
                     
+=======
+
+                    # Hilo de comunicación del lado del administrador
+                    st.markdown("💬 **Chat de la Tarea**")
+                    comentarios = obtener_comentarios(task["id"])
+
+>>>>>>> 4c3c26100fe18cc8b2010f69b951151984a2d343
                     chat_container = st.container(height=200)
                     with chat_container:
                         if comentarios:

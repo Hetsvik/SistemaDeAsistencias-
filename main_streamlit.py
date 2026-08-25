@@ -54,6 +54,30 @@ st.markdown("""
         color: #EF4444 !important;
     }
 
+    /* ================= TARJETA INFORMACIÓN EMPRESA ================= */
+    .sidebar-company-card {
+        background-color: #1E293B !important;
+        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important;
+        border: 1px solid #334155 !important;
+        border-radius: 10px !important;
+        padding: 14px !important;
+        margin-top: 10px !important;
+        margin-bottom: 10px !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+    .sidebar-company-name {
+        color: #F8FAFC !important;
+        font-weight: 700 !important;
+        font-size: 0.9rem !important;
+        line-height: 1.35 !important;
+        margin-bottom: 10px !important;
+    }
+    .sidebar-company-info {
+        color: #94A3B8 !important;
+        font-size: 0.82rem !important;
+        line-height: 1.4 !important;
+    }
+
     /* ================= BOTONES PRINCIPALES ================= */
     /* Ej: Registrar Entrada (Azul Corporativo) */
     .stButton > button[kind="primary"] {
@@ -115,13 +139,14 @@ with st.sidebar:
                 <div class="sidebar-company-info">
                     📞 +51 999 999 999
                 </div>
-                <div class="sidebar-company-info" style="margin-bottom: 8px;">
+                <div class="sidebar-company-info">
                     ✉️ contacto@empresa.com
                 </div>
             </div>
         """, unsafe_allow_html=True)
     
     st.divider()
+
 def now_local():
     """Retorna la fecha y hora actual en zona horaria local (UTC-5)"""
     return datetime.now(ZoneInfo("America/Lima"))
@@ -693,7 +718,7 @@ def render_admin_view():
                 if not all([name, position, code, pin]):
                     st.warning("Completa todos los datos.")
                 elif len(pin) != 4 or not pin.isdigit():
-                    st.warning("El PIN debe ser strictly de 4 dígitos numéricos.")
+                    st.warning("El PIN debe ser estrictamente de 4 dígitos numéricos.")
                 else:
                     try:
                         emp_id, _ = execute(
@@ -784,47 +809,8 @@ else:
                 """,
                 (today_date,),
             )
-        else:
-            notificaciones = []
 
-        cantidad = len(notificaciones) if notificaciones else 0
-        titulo_campana = f"🔔 Notificaciones ({cantidad})" if cantidad > 0 else "🔔 Notificaciones"
-
-        with st.expander(titulo_campana):
-            if cantidad > 0:
-                for i, notif in enumerate(notificaciones):
-                    if st.session_state.user["role"] == "Empleado":
-                        if st.button(
-                            f"📌 {notif['project']}\n\n{notif['descr']}",
-                            key=f"notif_emp_{i}_{notif['project']}",
-                        ):
-                            st.session_state.emp_nav = "📋 Mis Tareas del Día"
-                            st.rerun()
-                    else:
-                        es_fuera_de_plazo = bool(
-                            notif.get("notes") and "[ENTREGADO FUERA DE PLAZO]" in notif["notes"]
-                        )
-                        if es_fuera_de_plazo:
-                            st.error(
-                                f"⚠️ **ENTREGA FUERA DE PLAZO**\n\n"
-                                f"**{notif['emp']}** envió su reporte a destiempo.\n\n"
-                                f"📌 **Proyecto:** {notif['project']}\n"
-                                f"📝 **Tarea:** {notif['descr']}"
-                            )
-                        else:
-                            mensaje = f"✅ **{notif['emp']}** completó a tiempo:\n\n📌 {notif['project']} - {notif['descr']}"
-                            st.success(mensaje)
-            else:
-                st.write("No hay notificaciones nuevas.")
-
-        st.divider()
-
-        if st.button("🚪 Cerrar Sesión", use_container_width=True):
-            st.session_state.clear()
-            st.query_params.clear()
-            st.rerun()
-
-    if st.session_state.user["role"] == "Empleado":
-        render_employee_view()
-    elif st.session_state.user["role"] == "Administrador":
+    if st.session_state.user["role"] == "Administrador":
         render_admin_view()
+    else:
+        render_employee_view()

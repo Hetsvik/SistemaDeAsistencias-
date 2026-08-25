@@ -103,10 +103,10 @@ with st.sidebar:
     try:
         st.image("logo.png", use_container_width=True)
     except Exception:
-        st.markdown("### **EMPRESA**")
+        st.markdown("### **EMPRESA**")      
         
     # Mostrar la información de la empresa ÚNICAMENTE en la interfaz de login
-    if st.session_state.user is None:
+    if st.session_state.get("user") is None:
         st.markdown("""
             <div class="sidebar-company-card">
                 <div class="sidebar-company-name">
@@ -122,7 +122,6 @@ with st.sidebar:
         """, unsafe_allow_html=True)
     
     st.divider()
-
 def now_local():
     """Retorna la fecha y hora actual en zona horaria local (UTC-5)"""
     return datetime.now(ZoneInfo("America/Lima"))

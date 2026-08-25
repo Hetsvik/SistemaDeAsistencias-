@@ -105,20 +105,23 @@ with st.sidebar:
     except Exception:
         st.markdown("### **EMPRESA**")
         
-    # Información formal de la empresa (Siguiendo buenas prácticas de marcado)
-    st.markdown("""
-        <div class="sidebar-company-card">
-            <div class="sidebar-company-name">
-                🏢 Construcciones Asesoramiento<br>Técnico & Legal S.A.C.
+    # Mostrar la información de la empresa ÚNICAMENTE en la interfaz de login
+    if st.session_state.user is None:
+        st.markdown("""
+            <div class="sidebar-company-card">
+                <div class="sidebar-company-name">
+                    🏢 Construcciones Asesoramiento<br>Técnico & Legal S.A.C.
+                </div>
+                <div class="sidebar-company-info">
+                    📞 +51 999 999 999
+                </div>
+                <div class="sidebar-company-info" style="margin-bottom: 8px;">
+                    ✉️ contacto@empresa.com
+                </div>
             </div>
-            <div class="sidebar-company-info">
-                📞 +51 999 999 999
-            </div>
-            <div class="sidebar-company-info" style="margin-bottom: 8px;">
-                ✉️ contacto@empresa.com
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    
+    st.divider()
 
 def now_local():
     """Retorna la fecha y hora actual en zona horaria local (UTC-5)"""

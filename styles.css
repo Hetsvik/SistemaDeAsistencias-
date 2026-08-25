@@ -323,7 +323,7 @@ tr:hover td { background: var(--bg-main); }
 .sidebar-company-name {
   font-size: 14px;
   font-weight: 800;
-  color: #FFFFFF;
+  color: #FFFFFF !important;
   margin-bottom: 8px;
   line-height: 1.35;
   letter-spacing: -0.01em;
@@ -332,6 +332,6 @@ tr:hover td { background: var(--bg-main); }
 .sidebar-company-info {
   font-size: 12px;
   font-weight: 600;
-  color: #94A3B8;
+  color: #cbd5e1 !important;
   margin-bottom: 4px;
 }

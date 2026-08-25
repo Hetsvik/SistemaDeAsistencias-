@@ -108,3 +108,41 @@ td:last-child, th:last-child { text-align: right; }
   .login-card { padding: 30px 24px; }
   .session-badge { display: none; }
 }
+/* Ajustes para la imagen del logo en Login */
+.brand-logo {
+  display: block;
+  height: 52px;
+  width: auto;
+  object-fit: contain;
+  margin-bottom: 12px;
+}
+
+/* Ajustes para el logo en el Menú Lateral (Sidebar) */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  font-size: 20px;
+  font-weight: 800;
+}
+.sidebar-logo {
+  height: 34px;
+  width: auto;
+  object-fit: contain;
+}
+.logo-text span {
+  color: #75a1ff;
+}
+
+/* Ajuste Responsive en pantallas pequeñas */
+@media (max-width: 900px) {
+  .sidebar { width: 67px; padding: 20px 9px; }
+  .logo { padding: 0; justify-content: center; }
+  .logo-text { display: none; }
+  .sidebar-logo { height: 28px; }
+  .profile { padding: 20px 6px; }
+  .profile div:last-child, .nav-link span, .logout { display: none; }
+  .content { width: calc(100% - 67px); margin-left: 67px; padding: 24px; }
+  .three-columns, .two-columns.wide { grid-template-columns: 1fr; }
+}

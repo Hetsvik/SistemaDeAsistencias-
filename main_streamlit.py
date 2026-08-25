@@ -11,8 +11,7 @@ st.set_page_config(
 )
 
 # Estilos CSS personalizados inyectados directamente en Streamlit
-st.markdown("""
-    <style>
+st.markdown("""<style>
     /* Fondo principal de la aplicación */
     .stAppViewContainer {
         background-color: #F8FAFC;
@@ -127,25 +126,22 @@ with st.sidebar:
     try:
         st.image("logo.png", use_container_width=True)
     except Exception:
-        st.markdown("### **EMPRESA**")      
+        st.markdown("### **EMPRESA**")
         
-    # Mostrar la información de la empresa ÚNICAMENTE en la interfaz de login
-    if st.session_state.get("user") is None:
-        st.markdown("""
-            <div class="sidebar-company-card">
-                <div class="sidebar-company-name">
-                    🏢 Construcciones Asesoramiento<br>Técnico & Legal S.A.C.
-                </div>
-                <div class="sidebar-company-info">
-                    📞 +51 981 173 251
-                </div>
-                <div class="sidebar-company-info">
-                    ✉️ arqshuan@yahoo.es
-                </div>
+    # Información formal de la empresa (Siguiendo buenas prácticas de marcado)
+    st.markdown("""
+        <div class="sidebar-company-card">
+            <div class="sidebar-company-name">
+                🏢 Construcciones Asesoramiento<br>Técnico & Legal S.A.C.
             </div>
-        """, unsafe_allow_html=True)
-    
-    st.divider()
+            <div class="sidebar-company-info">
+                📞 +51 981 173 251
+            </div>
+            <div class="sidebar-company-info" style="margin-bottom: 8px;">
+                ✉️ arqshuan@yahoo.es
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
 def now_local():
     """Retorna la fecha y hora actual en zona horaria local (UTC-5)"""
@@ -718,7 +714,7 @@ def render_admin_view():
                 if not all([name, position, code, pin]):
                     st.warning("Completa todos los datos.")
                 elif len(pin) != 4 or not pin.isdigit():
-                    st.warning("El PIN debe ser estrictamente de 4 dígitos numéricos.")
+                    st.warning("El PIN debe ser strictly de 4 dígitos numéricos.")
                 else:
                     try:
                         emp_id, _ = execute(
@@ -809,8 +805,47 @@ else:
                 """,
                 (today_date,),
             )
+        else:
+            notificaciones = []
 
-    if st.session_state.user["role"] == "Administrador":
-        render_admin_view()
-    else:
+        cantidad = len(notificaciones) if notificaciones else 0
+        titulo_campana = f"🔔 Notificaciones ({cantidad})" if cantidad > 0 else "🔔 Notificaciones"
+
+        with st.expander(titulo_campana):
+            if cantidad > 0:
+                for i, notif in enumerate(notificaciones):
+                    if st.session_state.user["role"] == "Empleado":
+                        if st.button(
+                            f"📌 {notif['project']}\n\n{notif['descr']}",
+                            key=f"notif_emp_{i}_{notif['project']}",
+                        ):
+                            st.session_state.emp_nav = "📋 Mis Tareas del Día"
+                            st.rerun()
+                    else:
+                        es_fuera_de_plazo = bool(
+                            notif.get("notes") and "[ENTREGADO FUERA DE PLAZO]" in notif["notes"]
+                        )
+                        if es_fuera_de_plazo:
+                            st.error(
+                                f"⚠️ **ENTREGA FUERA DE PLAZO**\n\n"
+                                f"**{notif['emp']}** envió su reporte a destiempo.\n\n"
+                                f"📌 **Proyecto:** {notif['project']}\n"
+                                f"📝 **Tarea:** {notif['descr']}"
+                            )
+                        else:
+                            mensaje = f"✅ **{notif['emp']}** completó a tiempo:\n\n📌 {notif['project']} - {notif['descr']}"
+                            st.success(mensaje)
+            else:
+                st.write("No hay notificaciones nuevas.")
+
+        st.divider()
+
+        if st.button("🚪 Cerrar Sesión", use_container_width=True):
+            st.session_state.clear()
+            st.query_params.clear()
+            st.rerun()
+
+    if st.session_state.user["role"] == "Empleado":
         render_employee_view()
+    elif st.session_state.user["role"] == "Administrador":
+        render_admin_view()

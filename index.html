@@ -3,72 +3,200 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Control de Asistencia</title>
+  <title>Control de Asistencia Corporativo</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 </head>
 <body>
   <main id="loginView" class="login-shell">
     <section id="roleStep" class="login-card">
-      <span class="brand-mark">▦</span>
+      <!-- Esquina Superior del Login -->
+      <div class="brand-container">
+        <img src="logo.png" alt="Logo de la Empresa" class="company-logo">
+      </div>
       <p class="eyebrow">PORTAL CORPORATIVO</p>
-      <h1>Control de asistencia y tareas</h1>
-      <p class="muted">Seleccione su perfil de ingreso para continuar.</p>
+      <h1>Control de Asistencia</h1>
+      <p class="muted">Seleccione su perfil de acceso para ingresar.</p>
       <div class="role-grid">
-        <button class="role-card" data-role="Empleado"><span>👷</span><strong>Trabajador</strong><small>Marcar su jornada laboral</small></button>
-        <button class="role-card" data-role="Administrador"><span>🛡️</span><strong>Administrador</strong><small>Gestionar oficina y personal</small></button>
+        <button class="role-card" data-role="Empleado">
+          <span>👷</span>
+          <strong>Trabajador</strong>
+          <small>Marcar jornada laboral</small>
+        </button>
+        <button class="role-card" data-role="Administrador">
+          <span>🛡️</span>
+          <strong>Administrador</strong>
+          <small>Gestión de personal y monitoreo</small>
+        </button>
       </div>
     </section>
+
     <section id="credentialStep" class="login-card hidden">
       <button id="backRole" class="text-button">← Cambiar perfil</button>
       <p class="eyebrow" id="loginRoleLabel"></p>
-      <h1>Bienvenido de nuevo</h1>
+      <h1>Bienvenido</h1>
       <form id="loginForm">
-        <label>Código de acceso<input id="loginCode" autocomplete="username" required></label>
-        <label>PIN de acceso<input id="loginPin" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" required></label>
-        <button class="primary full" type="submit">Ingresar al sistema →</button>
+        <label>Código de acceso
+          <input id="loginCode" autocomplete="username" placeholder="Ej. EM0038" required>
+        </label>
+        <label>PIN de acceso
+          <input id="loginPin" type="password" placeholder="••••" required>
+        </label>
+        <button class="primary full" type="submit">Ingresar al Sistema →</button>
       </form>
-      <p class="hint">Datos de la base: <b>EM0038 / 1020</b> o <b>AD001 / 0671</b></p>
     </section>
   </main>
 
   <div id="appView" class="app hidden">
     <aside class="sidebar">
-      <div class="logo"><span>▦</span> Control<span>+</span></div>
-      <div class="profile"><div class="avatar" id="avatar"></div><div><strong id="sideName"></strong><small id="sidePosition"></small></div></div>
+      <!-- Logo en la Esquina Superior del Sidebar -->
+      <div class="brand-container">
+        <img src="logo.png" alt="Logo de la Empresa" class="company-logo">
+      </div>
+
+      <div class="profile">
+        <div class="avatar" id="avatar"></div>
+        <div>
+          <strong id="sideName"></strong>
+          <small id="sidePosition"></small>
+        </div>
+      </div>
+
       <nav id="navigation">
         <button class="nav-link active" data-view="attendance">◷ <span>Asistencia</span></button>
         <button class="nav-link admin-only" data-view="tasks">✓ <span>Tareas</span></button>
         <button class="nav-link admin-only" data-view="monitor">▤ <span>Monitoreo</span></button>
         <button class="nav-link admin-only" data-view="people">♙ <span>Personal</span></button>
+        <button class="nav-link" data-view="profile">👤 <span>Mi Perfil</span></button>
       </nav>
-      <button id="logout" class="logout">↪ Cerrar sesión</button>
+
+      <button id="logout" class="logout">↪ Cerrar Sesión</button>
     </aside>
+
     <section class="content">
-      <header><div><p class="eyebrow" id="today"></p><h2 id="pageTitle">Mi jornada</h2></div><div class="session-badge">● Sesión activa</div></header>
+      <header>
+        <div>
+          <p class="eyebrow" id="today"></p>
+          <h2 id="pageTitle">Mi jornada</h2>
+        </div>
+        <div class="session-badge">● Sesión activa</div>
+      </header>
+
       <div id="notice" class="notice hidden"></div>
 
       <section id="attendance" class="view">
-        <div class="welcome-card"><div><p class="eyebrow">REGISTRO DE JORNADA</p><h3 id="welcomeName"></h3><p>Registre su hora de entrada y salida desde aquí.</p></div><div class="clock" id="clock"></div></div>
-        <div class="action-grid"><article class="action-card entry"><span class="icon">↓</span><h3>Marcar entrada</h3><p id="entryInfo">Inicie su jornada laboral.</p><button id="markEntry" class="primary">Registrar entrada</button></article><article class="action-card exit"><span class="icon">↑</span><h3>Marcar salida</h3><p id="exitInfo">Finalice su jornada cuando corresponda.</p><button id="markExit" class="outline">Registrar salida</button></article></div>
-        <section class="panel"><div class="panel-title"><h3>Actividad de hoy</h3><span id="attendanceStatus" class="status neutral">Pendiente</span></div><div id="myAttendance"></div></section>
+        <div class="welcome-card">
+          <div>
+            <p class="eyebrow">REGISTRO DIARIO</p>
+            <h3 id="welcomeName"></h3>
+            <p>Monitoree y registre el tiempo de su jornada.</p>
+          </div>
+          <div class="clock" id="clock"></div>
+        </div>
+        <div class="action-grid">
+          <article class="action-card entry">
+            <h3>Marcar Entrada</h3>
+            <p id="entryInfo">Inicie su jornada laboral.</p>
+            <button id="markEntry" class="primary">Registrar Entrada</button>
+          </article>
+          <article class="action-card exit">
+            <h3>Marcar Salida</h3>
+            <p id="exitInfo">Finalice su jornada cuando corresponda.</p>
+            <button id="markExit" class="outline">Registrar Salida</button>
+          </article>
+        </div>
+        <section class="panel" style="margin-top:20px;">
+          <div class="panel-title">
+            <h3>Estado de Asistencia Hoy</h3>
+            <span id="attendanceStatus" class="status neutral">Pendiente</span>
+          </div>
+          <div id="myAttendance"></div>
+        </section>
       </section>
 
+      <!-- Resto de vistas: tareas, monitor, personal -->
       <section id="tasks" class="view hidden">
-        <div class="section-heading"><div><p class="eyebrow">ACTIVIDADES DIARIAS</p><h2>Gestión de tareas</h2></div></div>
-        <div class="two-columns"><form id="taskForm" class="panel form-panel"><h3>Nueva tarea</h3><label>Proyecto<select id="taskProject"></select></label><label id="workerField">Trabajador<select id="taskWorker"></select></label><label>Descripción<input id="taskDescription" required placeholder="¿Qué actividad va a realizar?"></label><label>Estado inicial<select id="taskState"><option>Asignada</option><option>En Progreso</option></select></label><button class="primary" type="submit">Guardar tarea</button></form><section class="panel"><h3>Actualizar tarea</h3><div id="taskUpdate"></div></section></div>
+        <div class="two-columns">
+          <form id="taskForm" class="panel">
+            <h3>Nueva Tarea</h3>
+            <label>Proyecto<select id="taskProject"></select></label>
+            <label id="workerField">Trabajador<select id="taskWorker"></select></label>
+            <label>Descripción<input id="taskDescription" required placeholder="Actividad a realizar"></label>
+            <label>Estado Inicial<select id="taskState"><option>Asignada</option><option>En Progreso</option></select></label>
+            <button class="primary" type="submit">Guardar Tarea</button>
+          </form>
+          <section class="panel">
+            <h3>Actualizar Tarea</h3>
+            <div id="taskUpdate"></div>
+          </section>
+        </div>
       </section>
 
       <section id="monitor" class="view hidden">
-        <div class="section-heading"><div><p class="eyebrow">VISTA GENERAL</p><h2>Monitoreo de la oficina</h2></div><button id="refreshMonitor" class="outline">↻ Actualizar</button></div>
-        <div class="metrics" id="metrics"></div><div class="two-columns wide"><section class="panel"><h3>Asistencia de hoy</h3><div id="attendanceTable"></div></section><section class="panel"><h3>Tareas de hoy</h3><div id="tasksTable"></div></section></div>
+        <div class="section-heading">
+          <div><p class="eyebrow">MONITOREO EN TIEMPO REAL</p><h2>Monitoreo General</h2></div>
+          <button id="refreshMonitor" class="outline">↻ Actualizar</button>
+        </div>
+        <div class="metrics" id="metrics"></div>
+        <div class="two-columns wide">
+          <section class="panel"><h3>Asistencia de Hoy</h3><div id="attendanceTable"></div></section>
+          <section class="panel"><h3>Tareas de Hoy</h3><div id="tasksTable"></div></section>
+        </div>
       </section>
 
+      <!-- PASO C: Vista de Personal (con campo de Contraseña modificado) -->
       <section id="people" class="view hidden">
-        <div class="section-heading"><div><p class="eyebrow">ADMINISTRACIÓN</p><h2>Personal y proyectos</h2></div></div>
-        <div class="three-columns"><form id="personForm" class="panel form-panel"><h3>➕ Dar de alta</h3><label>Nombre completo<input id="personName" required></label><label>Cargo<input id="personPosition" required></label><label>Código<input id="personCode" required></label><label>PIN (4 dígitos)<input id="personPin" maxlength="4" inputmode="numeric" required></label><label>Acceso<select id="personRole"><option>Empleado</option><option>Administrador</option></select></label><button class="primary">Registrar</button></form><section class="panel people-list"><h3>Plantilla de personal</h3><div id="peopleTable"></div></section><form id="projectForm" class="panel form-panel"><h3>🏢 Nuevo proyecto</h3><label>Nombre del proyecto<input id="projectName" required></label><label>Área responsable<input id="projectArea" required></label><button class="primary">Registrar proyecto</button><hr><h3>Retirar colaborador</h3><label>Colaborador<select id="deactivatePerson"></select></label><button id="deactivateButton" class="danger" type="button">Dar de baja</button></form></div>
+        <div class="three-columns">
+          <form id="personForm" class="panel">
+            <h3>➕ Dar de Alta</h3>
+            <label>Nombre Completo<input id="personName" required></label>
+            <label>Cargo<input id="personPosition" required></label>
+            <label>Código<input id="personCode" required></label>
+            <!-- Modificado: Se quita maxlength y inputmode para permitir cualquier tipo de contraseña -->
+            <label>Contraseña Inicial<input id="personPin" type="password" placeholder="••••••••" required></label>
+            <label>Acceso<select id="personRole"><option>Empleado</option><option>Administrador</option></select></label>
+            <button class="primary">Registrar Colaborador</button>
+          </form>
+          <section class="panel people-list">
+            <h3>Plantilla de Personal</h3>
+            <div id="peopleTable"></div>
+          </section>
+          <form id="projectForm" class="panel">
+            <h3>🏢 Nuevo Proyecto</h3>
+            <label>Nombre del Proyecto<input id="projectName" required></label>
+            <label>Área Responsable<input id="projectArea" required></label>
+            <button class="primary">Registrar Proyecto</button>
+          </form>
+        </div>
       </section>
-    </section>
-  </div>
+
+      <!-- PASO D: Nueva vista "Mi Perfil" para cambio de contraseña -->
+      <section id="profile" class="view hidden">
+        <div class="two-columns">
+          <form id="changePasswordForm" class="panel">
+            <h3>🔒 Cambiar Contraseña</h3>
+            <p class="muted" style="margin-bottom: 20px; font-size: 13px; color: #64748B;">
+              Su nueva contraseña puede incluir letras (mayúsculas y minúsculas), números y caracteres especiales.
+            </p>
+
+            <label>Contraseña Actual
+              <input id="currentPassword" type="password" placeholder="••••••••" required>
+            </label>
+            <label>Nueva Contraseña
+              <input id="newPassword" type="password" placeholder="••••••••" required minlength="6">
+            </label>
+            <label>Confirmar Nueva Contraseña
+              <input id="confirmPassword" type="password" placeholder="••••••••" required minlength="6">
+            </label>
+
+            <button class="primary" style="margin-top: 10px;" type="submit">Actualizar Contraseña</button>
+          </form>
+        </div>
+      </section>
+
+    </section> <!-- Cierre de class="content" -->
+  </div> <!-- Cierre de class="app" -->
   <script src="app.js"></script>
 </body>
 </html>

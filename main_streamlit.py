@@ -1,7 +1,14 @@
 from datetime import datetime
 import mysql.connector
+import os
 import streamlit as st
 from zoneinfo import ZoneInfo
+from services.google_drive_service import GoogleDriveService
+
+
+drive = GoogleDriveService(
+    root_folder_id=os.getenv("1OB33c-lkJuYlXUrRI8E9dQKYPClFH-qT")
+)
 
 # Configuración de página
 st.set_page_config(
@@ -13,10 +20,29 @@ st.set_page_config(
 # Estilos CSS personalizados inyectados directamente en Streamlit
 st.markdown("""<style>
     /* Fondo principal de la aplicación */
-    .stAppViewContainer {
-        background-color: #F8FAFC;
+    ./* Fondo principal adaptativo (Soluciona el error visual en modo oscuro) */
+    @media (prefers-color-scheme: light) {
+        .stAppViewContainer {
+            background-color: #F8FAFC;
+        }
     }
     
+    @media (prefers-color-scheme: dark) {
+        /* Adapta el fondo y los botones secundarios al modo oscuro */
+        .stAppViewContainer {
+            background-color: #0E1117;
+        }
+        .stButton > button[kind="secondary"] {
+            background-color: #1E293B !important;
+            border-color: #334155 !important;
+        }
+        .stButton > button[kind="secondary"] * {
+            color: #93C5FD !important;
+        }
+        .stButton > button[kind="secondary"]:hover {
+            background-color: #0F172A !important;
+        }
+    }
     /* ================= SIDEBAR ================= */
     [data-testid="stSidebar"] {
         background-color: #0F172A !important;
@@ -906,3 +932,4 @@ else:
         render_admin_view()
 
 #Instalacion de librerias necesarias Google Drive
+##hollaaa

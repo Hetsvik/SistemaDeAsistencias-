@@ -1,2 +1,7 @@
 streamlit
+streamlit>=1.37.0
 mysql-connector-python
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib

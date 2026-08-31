@@ -335,3 +335,25 @@ tr:hover td { background: var(--bg-main); }
   color: #cbd5e1 !important;
   margin-bottom: 4px;
 }
+/* --- ADAPTACIÓN AUTOMÁTICA A MODO OSCURO (HTML/JS) --- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-main: #0E1117;
+    --bg-card: #1E293B;
+    --text-dark: #F8FAFC;
+    --border-color: #334155;
+  }
+  
+  input, select {
+    background: #0F172A;
+    color: #F8FAFC;
+  }
+  
+  input:focus, select:focus {
+    background: #1E293B;
+  }
+  
+  .outline {
+    background: transparent;
+  }
+}

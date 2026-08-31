@@ -41,7 +41,7 @@
           <input id="loginCode" autocomplete="username" placeholder="Ej. EM0038" required>
         </label>
         <label>PIN de acceso
-          <input id="loginPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" required>
+          <input id="loginPin" type="password" placeholder="••••" required>
         </label>
         <button class="primary full" type="submit">Ingresar al Sistema →</button>
       </form>
@@ -68,6 +68,7 @@
         <button class="nav-link admin-only" data-view="tasks">✓ <span>Tareas</span></button>
         <button class="nav-link admin-only" data-view="monitor">▤ <span>Monitoreo</span></button>
         <button class="nav-link admin-only" data-view="people">♙ <span>Personal</span></button>
+        <button class="nav-link" data-view="profile">👤 <span>Mi Perfil</span></button>
       </nav>
 
       <button id="logout" class="logout">↪ Cerrar Sesión</button>
@@ -144,6 +145,7 @@
         </div>
       </section>
 
+      <!-- PASO C: Vista de Personal (con campo de Contraseña modificado) -->
       <section id="people" class="view hidden">
         <div class="three-columns">
           <form id="personForm" class="panel">
@@ -151,7 +153,8 @@
             <label>Nombre Completo<input id="personName" required></label>
             <label>Cargo<input id="personPosition" required></label>
             <label>Código<input id="personCode" required></label>
-            <label>PIN (4 dígitos)<input id="personPin" maxlength="4" inputmode="numeric" required></label>
+            <!-- Modificado: Se quita maxlength y inputmode para permitir cualquier tipo de contraseña -->
+            <label>Contraseña Inicial<input id="personPin" type="password" placeholder="••••••••" required></label>
             <label>Acceso<select id="personRole"><option>Empleado</option><option>Administrador</option></select></label>
             <button class="primary">Registrar Colaborador</button>
           </form>
@@ -167,8 +170,33 @@
           </form>
         </div>
       </section>
-    </section>
-  </div>
+
+      <!-- PASO D: Nueva vista "Mi Perfil" para cambio de contraseña -->
+      <section id="profile" class="view hidden">
+        <div class="two-columns">
+          <form id="changePasswordForm" class="panel">
+            <h3>🔒 Cambiar Contraseña</h3>
+            <p class="muted" style="margin-bottom: 20px; font-size: 13px; color: #64748B;">
+              Su nueva contraseña puede incluir letras (mayúsculas y minúsculas), números y caracteres especiales.
+            </p>
+
+            <label>Contraseña Actual
+              <input id="currentPassword" type="password" placeholder="••••••••" required>
+            </label>
+            <label>Nueva Contraseña
+              <input id="newPassword" type="password" placeholder="••••••••" required minlength="6">
+            </label>
+            <label>Confirmar Nueva Contraseña
+              <input id="confirmPassword" type="password" placeholder="••••••••" required minlength="6">
+            </label>
+
+            <button class="primary" style="margin-top: 10px;" type="submit">Actualizar Contraseña</button>
+          </form>
+        </div>
+      </section>
+
+    </section> <!-- Cierre de class="content" -->
+  </div> <!-- Cierre de class="app" -->
   <script src="app.js"></script>
 </body>
 </html>

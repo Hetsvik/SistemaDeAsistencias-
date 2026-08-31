@@ -128,7 +128,7 @@ with st.sidebar:
     except Exception:
         st.markdown("### **EMPRESA**")
         
-    # Información formal de la empresa (Siguiendo buenas prácticas de marcado)
+    # Información formal de la empresa
     st.markdown("""
         <div class="sidebar-company-card">
             <div class="sidebar-company-name">
@@ -298,7 +298,7 @@ def render_login():
         st.subheader("Iniciar Sesión")
         role = st.selectbox("Perfil de Acceso", ["Empleado", "Administrador"])
         code = st.text_input("Código de Usuario")
-        pin = st.text_input("PIN de Acceso", type="password")
+        pin = st.text_input("Contraseña de Acceso", type="password")
 
         if st.button("Ingresar", type="primary", use_container_width=True):
             if not code or not pin:
@@ -313,7 +313,7 @@ def render_login():
                 st.success(f"Bienvenido, {user['name']}")
                 st.rerun()
             else:
-                st.error("❌ Código, PIN o perfil incorrecto.")
+                st.error("❌ Código, Contraseña o perfil incorrecto.")
 
 # -----------------------------------------------------------------------------
 # VISTAS DE EMPLEADO
@@ -327,7 +327,7 @@ def render_employee_view():
     if "emp_nav" not in st.session_state:
         st.session_state.emp_nav = "🕒 Control de Asistencia"
 
-    nav_options = ["🕒 Control de Asistencia", "📋 Mis Tareas del Día"]
+    nav_options = ["🕒 Control de Asistencia", "📋 Mis Tareas del Día", "👤 Mi Perfil"]
     current_index = (
         nav_options.index(st.session_state.emp_nav)
         if st.session_state.emp_nav in nav_options
@@ -516,14 +516,41 @@ def render_employee_view():
         else:
             st.info("No tienes tareas asignadas para el día de hoy.")
 
+    # MI PERFIL (EMPLEADO)
+    elif st.session_state.emp_nav == "👤 Mi Perfil":
+        st.subheader("🔒 Cambiar Contraseña")
+        st.caption("Su nueva contraseña puede incluir letras (mayúsculas y minúsculas), números y caracteres especiales.")
+        
+        with st.form("emp_change_password"):
+            curr_pass = st.text_input("Contraseña Actual", type="password")
+            new_pass = st.text_input("Nueva Contraseña", type="password")
+            conf_pass = st.text_input("Confirmar Nueva Contraseña", type="password")
+            
+            if st.form_submit_button("Actualizar Contraseña"):
+                if not curr_pass or not new_pass or not conf_pass:
+                    st.warning("Debe completar todos los campos.")
+                elif new_pass != conf_pass:
+                    st.error("La nueva contraseña y la confirmación no coinciden.")
+                elif len(new_pass) < 6:
+                    st.error("La nueva contraseña debe tener al menos 6 caracteres.")
+                elif curr_pass == new_pass:
+                    st.error("La nueva contraseña no puede ser igual a la clave actual.")
+                else:
+                    user_db = query("SELECT PIN_Acceso FROM Trabajadores WHERE ID_Trabajador=%s", (user["id"],), one=True)
+                    if user_db and user_db["PIN_Acceso"] == curr_pass:
+                        execute("UPDATE Trabajadores SET PIN_Acceso=%s WHERE ID_Trabajador=%s", (new_pass, user["id"]))
+                        st.success("✅ Contraseña actualizada con éxito.")
+                    else:
+                        st.error("❌ La contraseña actual es incorrecta.")
+
 # -----------------------------------------------------------------------------
 # VISTAS DE ADMINISTRADOR
 # -----------------------------------------------------------------------------
 def render_admin_view():
     st.title("⚙️ Panel de Administración")
 
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["📊 Monitoreo y Control", "➕ Asignar Tareas", "👥 Personal", "📁 Proyectos"]
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        ["📊 Monitoreo y Control", "➕ Asignar Tareas", "👥 Personal", "📁 Proyectos", "👤 Mi Perfil"]
     )
 
     # MONITOREO ESTILO CLICKUP
@@ -707,14 +734,14 @@ def render_admin_view():
             name = st.text_input("Nombre Completo")
             position = st.text_input("Cargo / Puesto")
             code = st.text_input("Código de Trabajador (Ej: TRAB01)")
-            pin = st.text_input("PIN (4 dígitos)", type="password")
+            pin = st.text_input("Contraseña Inicial", type="password")
             submitted = st.form_submit_button("Registrar Trabajador")
 
             if submitted:
                 if not all([name, position, code, pin]):
                     st.warning("Completa todos los datos.")
-                elif len(pin) != 4 or not pin.isdigit():
-                    st.warning("El PIN debe ser strictly de 4 dígitos numéricos.")
+                elif len(pin) < 4:
+                    st.warning("La contraseña inicial debe tener al menos 4 caracteres.")
                 else:
                     try:
                         emp_id, _ = execute(
@@ -766,6 +793,33 @@ def render_admin_view():
         st.subheader("Lista de Proyectos")
         projs = query("SELECT ID_Proyecto AS ID, Nombre_Proyecto AS Proyecto, Area_Departamento AS Área FROM Proyectos ORDER BY Nombre_Proyecto")
         st.dataframe(projs, use_container_width=True)
+
+    # MI PERFIL (ADMINISTRADOR)
+    with tab5:
+        st.subheader("🔒 Cambiar Contraseña de Administrador")
+        st.caption("Su nueva contraseña puede incluir letras (mayúsculas y minúsculas), números y caracteres especiales.")
+        
+        with st.form("admin_change_password"):
+            curr_pass = st.text_input("Contraseña Actual", type="password")
+            new_pass = st.text_input("Nueva Contraseña", type="password")
+            conf_pass = st.text_input("Confirmar Nueva Contraseña", type="password")
+            
+            if st.form_submit_button("Actualizar Contraseña"):
+                if not curr_pass or not new_pass or not conf_pass:
+                    st.warning("Debe completar todos los campos.")
+                elif new_pass != conf_pass:
+                    st.error("La nueva contraseña y la confirmación no coinciden.")
+                elif len(new_pass) < 6:
+                    st.error("La nueva contraseña debe tener al menos 6 caracteres.")
+                elif curr_pass == new_pass:
+                    st.error("La nueva contraseña no puede ser igual a la clave actual.")
+                else:
+                    user_db = query("SELECT PIN_Acceso FROM Administrador WHERE ID_Administrador=%s", (st.session_state.user["id"],), one=True)
+                    if user_db and user_db["PIN_Acceso"] == curr_pass:
+                        execute("UPDATE Administrador SET PIN_Acceso=%s WHERE ID_Administrador=%s", (new_pass, st.session_state.user["id"]))
+                        st.success("✅ Contraseña actualizada con éxito.")
+                    else:
+                        st.error("❌ La contraseña actual es incorrecta.")
 
 # -----------------------------------------------------------------------------
 # CONTROL DE FLUJO PRINCIPAL Y NOTIFICACIONES

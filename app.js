@@ -107,7 +107,8 @@ async function showView(id) {
     attendance: 'Mi jornada',
     tasks: 'Gestión de tareas',
     monitor: 'Monitoreo de la oficina',
-    people: 'Administración de personal'
+    people: 'Administración de personal',
+    profile: 'Mi Perfil'
   };
 
   $('#pageTitle').textContent = titles[id];
@@ -372,17 +373,20 @@ async function renderPeople() {
   );
 
   const active = people.filter(p => p.status === 'Activo' && p.id !== user.id);
-  $('#deactivatePerson').innerHTML = active
-    .map(p => `<option value="${p.id}">${escape(p.name)}</option>`)
-    .join('') || '<option value="">Sin opciones</option>';
+  const deactivateSelect = $('#deactivatePerson');
+  if (deactivateSelect) {
+    deactivateSelect.innerHTML = active
+      .map(p => `<option value="${p.id}">${escape(p.name)}</option>`)
+      .join('') || '<option value="">Sin opciones</option>';
+  }
 }
 
 $('#personForm').onsubmit = async e => {
   e.preventDefault();
 
   const pin = $('#personPin').value.trim();
-  if (!/^\d{4}$/.test(pin))
-    return notice('El PIN debe tener 4 dígitos.', 'error');
+  if (pin.length < 4)
+    return notice('La contraseña inicial debe tener al menos 4 caracteres.', 'error');
 
   try {
     await api('/api/workers', {
@@ -424,27 +428,69 @@ $('#projectForm').onsubmit = async e => {
   }
 };
 
-$('#deactivateButton').onclick = async () => {
-  const id = Number($('#deactivatePerson').value);
-  if (!id) return;
+const deactivateBtn = $('#deactivateButton');
+if (deactivateBtn) {
+  deactivateBtn.onclick = async () => {
+    const deactivateSelect = $('#deactivatePerson');
+    const id = deactivateSelect ? Number(deactivateSelect.value) : null;
+    if (!id) return;
 
-  try {
-    await api(`/api/people/${id}/deactivate`, {method:'PATCH'});
-    await renderPeople();
-    await loadWorkers();
-    notice('Trabajador dado de baja correctamente.');
-  } catch (error) {
-    notice(error.message, 'error');
-  }
-};
+    try {
+      await api(`/api/people/${id}/deactivate`, {method:'PATCH'});
+      await renderPeople();
+      await loadWorkers();
+      notice('Trabajador dado de baja correctamente.');
+    } catch (error) {
+      notice(error.message, 'error');
+    }
+  };
+}
+
+/* ---------------- MI PERFIL / CAMBIO DE CONTRASEÑA ---------------- */
+
+const changePasswordForm = $('#changePasswordForm');
+if (changePasswordForm) {
+  changePasswordForm.onsubmit = async e => {
+    e.preventDefault();
+
+    const currentPassword = $('#currentPassword').value.trim();
+    const newPassword = $('#newPassword').value.trim();
+    const confirmPassword = $('#confirmPassword').value.trim();
+
+    if (newPassword !== confirmPassword) {
+      return notice('La nueva contraseña y la confirmación no coinciden.', 'error');
+    }
+
+    if (newPassword.length < 6) {
+      return notice('La nueva contraseña debe tener al menos 6 caracteres.', 'error');
+    }
+
+    if (currentPassword === newPassword) {
+      return notice('La nueva contraseña no puede ser igual a la clave actual.', 'error');
+    }
+
+    try {
+      await api('/api/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+
+      e.target.reset();
+      notice('Contraseña actualizada con éxito.');
+      await showView('attendance');
+    } catch (error) {
+      notice(error.message, 'error');
+    }
+  };
+}
 
 /* ---------------- RELOJ ---------------- */
 
 setInterval(() => {
-  $('#clock').textContent = new Date().toLocaleTimeString('es-PE', {
-    hour:'2-digit', minute:'2-digit', second:'2-digit'
-  });
+  const clockEl = $('#clock');
+  if (clockEl) {
+    clockEl.textContent = new Date().toLocaleTimeString('es-PE', {
+      hour:'2-digit', minute:'2-digit', second:'2-digit'
+    });
+  }
 }, 1000);
-
-/* No se cargan usuarios, tareas ni asistencia desde JavaScript.
-   Toda la información procede de la API REST y MySQL. */

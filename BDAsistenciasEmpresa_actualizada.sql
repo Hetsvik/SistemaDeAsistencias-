@@ -394,8 +394,4 @@ BEGIN
     );
 END $$
 
-<<<<<<< HEAD
 DELIMITER ;
-=======
-DELIMITER ;
->>>>>>> 7376e4ff6055d81d744e3173a0200498899e29eb

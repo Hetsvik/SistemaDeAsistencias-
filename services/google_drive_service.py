@@ -20,16 +20,16 @@ class GoogleDriveService:
 
     def __init__(self):
 
-        # =====================================================
-        # CREDENCIALES DE GOOGLE
-        # =====================================================
-
         google_config = dict(
             st.secrets["google_drive"]
         )
 
-        # Eliminar configuraciones que NO son credenciales
-        google_config.pop("folder_id", None)
+        # Corregir los saltos de línea de la private key
+        google_config["private_key"] = (
+            google_config["private_key"]
+            .replace("\\n", "\n")
+        )
+        #yaa
 
         self.credentials = (
             service_account.Credentials.from_service_account_info(
@@ -38,19 +38,11 @@ class GoogleDriveService:
             )
         )
 
-        # =====================================================
-        # CONEXIÓN CON GOOGLE DRIVE
-        # =====================================================
-
         self.service = build(
             "drive",
             "v3",
             credentials=self.credentials
         )
-
-        # =====================================================
-        # CARPETA PRINCIPAL
-        # =====================================================
 
         self.root_folder_id = st.secrets["storage"][
             "google_drive_folder_id"

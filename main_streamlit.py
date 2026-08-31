@@ -209,7 +209,6 @@ def agregar_comentario(id_tarea, autor, rol, mensaje):
             "INSERT INTO Comentarios_Tarea (ID_Tarea, Autor, Rol, Mensaje) VALUES (%s, %s, %s, %s)",
             (id_tarea, autor, rol, mensaje.strip()),
         )
-<<<<<<< HEAD
 
 @st.fragment(run_every="10s")
 def render_chat_fragment(id_tarea, rol_usuario):
@@ -226,8 +225,6 @@ def render_chat_fragment(id_tarea, rol_usuario):
                 st.info("No hay mensajes. Usa este espacio para comunicarte con el administrador.")
             else:
                 st.info("Inicia la comunicación para dar feedback al empleado.")
-=======
->>>>>>> 7376e4ff6055d81d744e3173a0200498899e29eb
 
 # -----------------------------------------------------------------------------
 # MANEJO DE SESIÓN Y PERSISTENCIA (F5)
@@ -515,20 +512,8 @@ def render_employee_view():
 
                     st.divider()
                     st.markdown("💬 **Feedback y Comunicación**")
-<<<<<<< HEAD
                     
                     render_chat_fragment(task["id"], "Empleado")
-=======
-                    comentarios = obtener_comentarios(task["id"])
-                    chat_container = st.container(height=200)
-                    with chat_container:
-                        if comentarios:
-                            for c in comentarios:
-                                st.caption(f"**{c['Autor']} ({c['Rol']})** - {c['Fecha']}")
-                                st.write(f"└ {c['Mensaje']}")
-                        else:
-                            st.info("No hay mensajes. Usa este espacio para comunicarte con el administrador.")
->>>>>>> 7376e4ff6055d81d744e3173a0200498899e29eb
 
                     col_msg1, col_msg2 = st.columns([3, 1])
                     with col_msg1:
@@ -666,21 +651,8 @@ def render_admin_view():
 
                     st.divider()
                     st.markdown("💬 **Chat de la Tarea**")
-<<<<<<< HEAD
                     
                     render_chat_fragment(task["id"], "Administrador")
-=======
-                    comentarios = obtener_comentarios(task["id"])
-                    
-                    chat_container = st.container(height=200)
-                    with chat_container:
-                        if comentarios:
-                            for c in comentarios:
-                                st.caption(f"**{c['Autor']} ({c['Rol']})** - {c['Fecha']}")
-                                st.write(f"└ {c['Mensaje']}")
-                        else:
-                            st.info("Inicia la comunicación para dar feedback al empleado.")
->>>>>>> 7376e4ff6055d81d744e3173a0200498899e29eb
 
                     col_msg1, col_msg2 = st.columns([3, 1])
                     with col_msg1:

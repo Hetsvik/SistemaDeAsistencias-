@@ -359,7 +359,7 @@ def render_login():
 # -----------------------------------------------------------------------------
 # INTEGRACIÓN GOOGLE DRIVE
 # -----------------------------------------------------------------------------
-from google_drive_service import GoogleDriveService
+from services.google_drive_service import GoogleDriveService
 
 # Inicializamos el servicio de Google Drive
 try:

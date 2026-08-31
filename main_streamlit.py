@@ -6,9 +6,7 @@ from zoneinfo import ZoneInfo
 from services.google_drive_service import GoogleDriveService
 
 
-drive = GoogleDriveService(
-    root_folder_id=os.getenv("1OB33c-lkJuYlXUrRI8E9dQKYPClFH-qT")
-)
+drive = GoogleDriveService()
 
 # Configuración de página
 st.set_page_config(

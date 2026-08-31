@@ -20,16 +20,14 @@ class GoogleDriveService:
 
     def __init__(self):
 
-        google_config = dict(
-            st.secrets["google_drive"]
-        )
+        google_config = dict(st.secrets["google_drive"])
 
-        # Corregir los saltos de línea de la private key
-        google_config["private_key"] = (
-            google_config["private_key"]
-            .replace("\\n", "\n")
-        )
-        #yaa
+        # Corregir los saltos de línea de la clave privada
+        if "private_key" in google_config:
+            google_config["private_key"] = (
+                google_config["private_key"]
+                .replace("\\n", "\n")
+            )
 
         self.credentials = (
             service_account.Credentials.from_service_account_info(

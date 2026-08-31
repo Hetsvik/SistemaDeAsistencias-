@@ -20,14 +20,16 @@ class GoogleDriveService:
 
     def __init__(self):
 
-        google_config = dict(st.secrets["google_drive"])
+        # =====================================================
+        # CREDENCIALES DE GOOGLE
+        # =====================================================
 
-        # Corregir los saltos de línea de la clave privada
-        if "private_key" in google_config:
-            google_config["private_key"] = (
-                google_config["private_key"]
-                .replace("\\n", "\n")
-            )
+        google_config = dict(
+            st.secrets["google_drive"]
+        )
+
+        # Eliminar configuraciones que NO son credenciales
+        google_config.pop("folder_id", None)
 
         self.credentials = (
             service_account.Credentials.from_service_account_info(
@@ -36,11 +38,19 @@ class GoogleDriveService:
             )
         )
 
+        # =====================================================
+        # CONEXIÓN CON GOOGLE DRIVE
+        # =====================================================
+
         self.service = build(
             "drive",
             "v3",
             credentials=self.credentials
         )
+
+        # =====================================================
+        # CARPETA PRINCIPAL
+        # =====================================================
 
         self.root_folder_id = st.secrets["storage"][
             "google_drive_folder_id"
@@ -84,62 +94,51 @@ class GoogleDriveService:
     # SUBIR ARCHIVO
     # =========================================================
 
-def upload_file(
-    self,
-    file_data,
-    file_name,
-    mime_type=None,
-    parent_folder_id=None
-         ):
-       try:
+    def upload_file(
+        self,
+        file_data,
+        file_name,
+        mime_type=None,
+        parent_folder_id=None
+    ):
 
-        if parent_folder_id is None:
-            parent_folder_id = self.root_folder_id
+        try:
 
-        if not parent_folder_id:
-            raise ValueError("No se ha configurado el ID de la carpeta de Google Drive.")
+            if parent_folder_id is None:
+                parent_folder_id = self.root_folder_id
 
-        if mime_type is None:
-            mime_type = (
-                mimetypes.guess_type(file_name)[0]
-                or "application/octet-stream"
+            if mime_type is None:
+
+                mime_type = (
+                    mimetypes.guess_type(file_name)[0]
+                    or "application/octet-stream"
+                )
+
+            metadata = {
+                "name": file_name,
+                "parents": [parent_folder_id]
+            }
+
+            media = MediaIoBaseUpload(
+                io.BytesIO(file_data),
+                mimetype=mime_type,
+                resumable=True
             )
 
-        file_metadata = {
-            "name": file_name,
-            "parents": [parent_folder_id]
-        }
+            uploaded_file = self.service.files().create(
+                body=metadata,
+                media_body=media,
+                fields="id,name,mimeType,size,webViewLink"
+            ).execute()
 
-        media = MediaIoBaseUpload(
-            io.BytesIO(file_data),
-            mimetype=mime_type,
-            resumable=True
-        )
+            return uploaded_file
 
-        uploaded_file = self.service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields="id, name, mimeType, size, webViewLink"
-        ).execute()
+        except HttpError as e:
 
-        print("Archivo subido correctamente:")
-        print(uploaded_file)
+            print(f"Error subiendo archivo: {e}")
 
-        return uploaded_file
+            return None
 
-    except HttpError as e:
-        print("========== ERROR GOOGLE DRIVE ==========")
-        print("Status:", e.resp.status)
-        print("Contenido:", e.content.decode("utf-8"))
-        print("========================================")
-        return None
-
-    except Exception as e:
-        print("========== ERROR GENERAL ==========")
-        print(type(e).__name__)
-        print(str(e))
-        print("===================================")
-        return None
     # =========================================================
     # OBTENER ARCHIVO
     # =========================================================

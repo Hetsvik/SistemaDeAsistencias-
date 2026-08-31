@@ -357,6 +357,17 @@ def render_login():
                 st.error("❌ Código, Contraseña o perfil incorrecto.")
 
 # -----------------------------------------------------------------------------
+# INTEGRACIÓN GOOGLE DRIVE
+# -----------------------------------------------------------------------------
+from google_drive_service import GoogleDriveService
+
+# Inicializamos el servicio de Google Drive
+try:
+    drive_service = GoogleDriveService()
+except Exception as e:
+    drive_service = None
+
+# -----------------------------------------------------------------------------
 # VISTAS DE EMPLEADO
 # -----------------------------------------------------------------------------
 def render_employee_view():
@@ -540,13 +551,33 @@ def render_employee_view():
                     
                     render_chat_fragment(task["id"], "Empleado")
 
+                    # CAMPO ADJUNTO + MENSAJE
+                    uploaded_file_emp = st.file_uploader("📎 Adjuntar Archivo", key=f"file_emp_{task['id']}")
                     col_msg1, col_msg2 = st.columns([3, 1])
                     with col_msg1:
                         reply_msg = st.text_input("Agregar comentario...", key=f"input_emp_{task['id']}", label_visibility="collapsed")
                     with col_msg2:
                         if st.button("Enviar", key=f"send_emp_{task['id']}", use_container_width=True):
-                            agregar_comentario(task["id"], user["name"], "Empleado", reply_msg)
-                            st.rerun()
+                            file_link = ""
+                            if uploaded_file_emp and drive_service:
+                                file_bytes = uploaded_file_emp.getvalue()
+                                drive_res = drive_service.upload_file(
+                                    file_data=file_bytes,
+                                    file_name=uploaded_file_emp.name,
+                                    mime_type=uploaded_file_emp.type
+                                )
+                                if drive_res and "webViewLink" in drive_res:
+                                    file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_emp.name}]({drive_res['webViewLink']})"
+                                    st.success("Archivo subido a Google Drive.")
+                                else:
+                                    st.error("Error al subir el archivo a Google Drive.")
+
+                            final_message = (reply_msg + file_link).strip()
+                            if final_message:
+                                agregar_comentario(task["id"], user["name"], "Empleado", final_message)
+                                st.rerun()
+                            else:
+                                st.warning("Escribe un mensaje o adjunta un archivo.")
         else:
             st.info("No tienes tareas asignadas para el día de hoy.")
 
@@ -679,13 +710,33 @@ def render_admin_view():
                     
                     render_chat_fragment(task["id"], "Administrador")
 
+                    # CAMPO ADJUNTO + MENSAJE (ADMIN)
+                    uploaded_file_admin = st.file_uploader("📎 Adjuntar Archivo", key=f"file_admin_{task['id']}")
                     col_msg1, col_msg2 = st.columns([3, 1])
                     with col_msg1:
                         nuevo_msg = st.text_input("Instrucciones u observaciones...", key=f"input_admin_{task['id']}", label_visibility="collapsed")
                     with col_msg2:
                         if st.button("Enviar Feedback", key=f"send_admin_{task['id']}", use_container_width=True):
-                            agregar_comentario(task["id"], st.session_state.user["name"], "Administrador", nuevo_msg)
-                            st.rerun()
+                            file_link = ""
+                            if uploaded_file_admin and drive_service:
+                                file_bytes = uploaded_file_admin.getvalue()
+                                drive_res = drive_service.upload_file(
+                                    file_data=file_bytes,
+                                    file_name=uploaded_file_admin.name,
+                                    mime_type=uploaded_file_admin.type
+                                )
+                                if drive_res and "webViewLink" in drive_res:
+                                    file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_admin.name}]({drive_res['webViewLink']})"
+                                    st.success("Archivo subido a Google Drive.")
+                                else:
+                                    st.error("Error al subir el archivo a Google Drive.")
+
+                            final_message = (nuevo_msg + file_link).strip()
+                            if final_message:
+                                agregar_comentario(task["id"], st.session_state.user["name"], "Administrador", final_message)
+                                st.rerun()
+                            else:
+                                st.warning("Escribe un mensaje o adjunta un archivo.")
         else:
             st.info("No hay tareas registradas hoy.")
 
@@ -846,7 +897,6 @@ def render_admin_view():
                         st.success("✅ Contraseña actualizada con éxito.")
                     else:
                         st.error("❌ La contraseña actual es incorrecta.")
-
 # -----------------------------------------------------------------------------
 # CONTROL DE FLUJO PRINCIPAL Y NOTIFICACIONES
 # -----------------------------------------------------------------------------

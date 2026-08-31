@@ -84,51 +84,62 @@ class GoogleDriveService:
     # SUBIR ARCHIVO
     # =========================================================
 
-    def upload_file(
-        self,
-        file_data,
-        file_name,
-        mime_type=None,
-        parent_folder_id=None
-    ):
+def upload_file(
+    self,
+    file_data,
+    file_name,
+    mime_type=None,
+    parent_folder_id=None
+         ):
+       try:
 
-        try:
+        if parent_folder_id is None:
+            parent_folder_id = self.root_folder_id
 
-            if parent_folder_id is None:
-                parent_folder_id = self.root_folder_id
+        if not parent_folder_id:
+            raise ValueError("No se ha configurado el ID de la carpeta de Google Drive.")
 
-            if mime_type is None:
-
-                mime_type = (
-                    mimetypes.guess_type(file_name)[0]
-                    or "application/octet-stream"
-                )
-
-            metadata = {
-                "name": file_name,
-                "parents": [parent_folder_id]
-            }
-
-            media = MediaIoBaseUpload(
-                io.BytesIO(file_data),
-                mimetype=mime_type,
-                resumable=True
+        if mime_type is None:
+            mime_type = (
+                mimetypes.guess_type(file_name)[0]
+                or "application/octet-stream"
             )
 
-            uploaded_file = self.service.files().create(
-                body=metadata,
-                media_body=media,
-                fields="id,name,mimeType,size,webViewLink"
-            ).execute()
+        file_metadata = {
+            "name": file_name,
+            "parents": [parent_folder_id]
+        }
 
-            return uploaded_file
+        media = MediaIoBaseUpload(
+            io.BytesIO(file_data),
+            mimetype=mime_type,
+            resumable=True
+        )
 
-        except HttpError as e:
+        uploaded_file = self.service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields="id, name, mimeType, size, webViewLink"
+        ).execute()
 
-            print(f"Error subiendo archivo: {e}")
+        print("Archivo subido correctamente:")
+        print(uploaded_file)
 
-            return None
+        return uploaded_file
 
+    except HttpError as e:
+        print("========== ERROR GOOGLE DRIVE ==========")
+        print("Status:", e.resp.status)
+        print("Contenido:", e.content.decode("utf-8"))
+        print("========================================")
+        return None
+
+    except Exception as e:
+        print("========== ERROR GENERAL ==========")
+        print(type(e).__name__)
+        print(str(e))
+        print("===================================")
+        return None
     # =========================================================
     # OBTENER ARCHIVO
     # =========================================================

@@ -101,11 +101,6 @@ class GoogleDriveService:
         mime_type=None,
         parent_folder_id=None
     ):
-    if uploaded_file and "id" in uploaded_file:
-        self.service.permissions().create(
-            fileId=uploaded_file["id"],
-            body={"role": "reader", "type": "anyone"}
-        ).execute()
         try:
 
             if parent_folder_id is None:

@@ -144,6 +144,56 @@ class GoogleDriveService:
             return None
 
     # =========================================================
+    # OBTENER (O CREAR) CARPETA PERSONAL DEL USUARIO
+    # =========================================================
+
+    def get_user_folder(self, role, code, full_name):
+        """
+        Devuelve el ID de la carpeta personal del usuario dentro de la
+        carpeta raíz configurada en secrets, creando toda la jerarquía
+        si todavía no existe:
+
+            Documentos (root_folder_id)
+              └── Trabajadores | Administradores
+                    └── "{code} - {full_name}"
+
+        role: "Administrador" o "Empleado" (cualquier otro valor se
+              trata como "Empleado" / Trabajador).
+        code: Código único del trabajador o administrador.
+        full_name: Nombre completo del usuario (Nombre_Completo).
+
+        Retorna None si no se pudo crear/encontrar la carpeta, en cuyo
+        caso el llamador debe manejar el error (no forzar el root).
+        """
+        try:
+            category_name = (
+                "Administradores" if role == "Administrador" else "Trabajadores"
+            )
+
+            category_folder_id = self.get_or_create_folder(
+                category_name,
+                parent_id=self.root_folder_id
+            )
+
+            if not category_folder_id:
+                return None
+
+            safe_code = (code or "SIN-CODIGO").strip()
+            safe_name = (full_name or "SIN-NOMBRE").strip()
+            user_folder_name = f"{safe_code} - {safe_name}"
+
+            user_folder_id = self.get_or_create_folder(
+                user_folder_name,
+                parent_id=category_folder_id
+            )
+
+            return user_folder_id
+
+        except HttpError as e:
+            print(f"Error obteniendo la carpeta del usuario '{code} - {full_name}': {e}")
+            return None
+
+    # =========================================================
     # SUBIR ARCHIVO
     # =========================================================
 

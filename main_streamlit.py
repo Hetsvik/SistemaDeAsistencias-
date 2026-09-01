@@ -558,19 +558,22 @@ def render_employee_view():
                     with col_msg2:
                         if st.button("Enviar", key=f"send_emp_{task['id']}", use_container_width=True):
                             file_link = ""
-                            if uploaded_file_emp and drive:
-                                file_bytes = uploaded_file_emp.getvalue()
-                                drive_res = drive_service.upload_file(
-                                    file_data=file_bytes,
-                                    file_name=uploaded_file_emp.name,
-                                    mime_type=uploaded_file_emp.type,
-                                    parent_folder_id="1cTZWH0ENvx740PvCDv8TNer26Pgi1ppn"
-                                )
-                                if drive_res and "webViewLink" in drive_res:
-                                    file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_emp.name}]({drive_res['webViewLink']})"
-                                    st.success("Archivo subido a Google Drive.")
+                            if uploaded_file_emp:
+                                if drive_service is None:
+                                    st.error("⚠️ El servicio de Google Drive no está disponible.")
                                 else:
-                                    st.error("Error al subir el archivo a Google Drive.")
+                                    file_bytes = uploaded_file_emp.getvalue()
+                                    drive_res = drive_service.upload_file(
+                                        file_data=file_bytes,
+                                        file_name=uploaded_file_emp.name,
+                                        mime_type=uploaded_file_emp.type,
+                                        parent_folder_id="1cTZWH0ENvx740PvCDv8TNer26Pgi1ppn"
+                                    )
+                                    if drive_res and "webViewLink" in drive_res:
+                                        file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_emp.name}]({drive_res['webViewLink']})"
+                                        st.success("Archivo subido a Google Drive.")
+                                    else:
+                                        st.error("Error al subir el archivo a Google Drive.")
 
                             final_message = (reply_msg + file_link).strip()
                             if final_message:
@@ -733,19 +736,22 @@ def render_admin_view():
                     with col_msg2:
                         if st.button("Enviar Feedback", key=f"send_admin_{task['id']}", use_container_width=True):
                             file_link = ""
-                            if uploaded_file_admin and drive:
-                                file_bytes = uploaded_file_admin.getvalue()
-                                drive_res = drive_service.upload_file(
-                                    file_data=file_bytes,
-                                    file_name=uploaded_file_admin.name,
-                                    mime_type=uploaded_file_admin.type,
-                                    parent_folder_id="1cTZWH0ENvx740PvCDv8TNer26Pgi1ppn" 
-                                )
-                                if drive_res and "webViewLink" in drive_res:
-                                    file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_admin.name}]({drive_res['webViewLink']})"
-                                    st.success("Archivo subido a Google Drive.")
+                            if uploaded_file_admin:
+                                if drive_service is None:
+                                    st.error("⚠️ El servicio de Google Drive no está disponible.")
                                 else:
-                                    st.error("Error al subir el archivo a Google Drive.")
+                                    file_bytes = uploaded_file_admin.getvalue()
+                                    drive_res = drive_service.upload_file(
+                                        file_data=file_bytes,
+                                        file_name=uploaded_file_admin.name,
+                                        mime_type=uploaded_file_admin.type,
+                                        parent_folder_id="1cTZWH0ENvx740PvCDv8TNer26Pgi1ppn" 
+                                    )
+                                    if drive_res and "webViewLink" in drive_res:
+                                        file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_admin.name}]({drive_res['webViewLink']})"
+                                        st.success("Archivo subido a Google Drive.")
+                                    else:
+                                        st.error("Error al subir el archivo a Google Drive.")
 
                             final_message = (nuevo_msg + file_link).strip()
                             if final_message:

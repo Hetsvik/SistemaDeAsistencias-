@@ -334,7 +334,6 @@ def render_login():
                 st.rerun()
             else:
                 st.error("❌ Código, Contraseña o perfil incorrecto.")
-
 # -----------------------------------------------------------------------------
 # VISTAS DE EMPLEADO
 # -----------------------------------------------------------------------------
@@ -386,11 +385,11 @@ def render_employee_view():
             limite_tolerancia = dtime(9, 20, 0)
             
             if hora_entrada <= limite_tolerancia:
-                st.success(f"🟢 *A tiempo:* Registraste tu entrada dentro de la tolerancia.")
+                st.success(f"🟢 **A tiempo:** Registraste tu entrada dentro de la tolerancia.")
             else:
-                st.error(f"🔴 *Tardanza:* Registraste tu entrada fuera del límite de las 09:20.")
+                st.error(f"🔴 **Tardanza:** Registraste tu entrada fuera del límite de las 09:20.")
         else:
-            st.warning(f"⚪ *Pendiente:* Aún no has registrado tu entrada de hoy.")
+            st.warning(f"⚪ **Pendiente:** Aún no has registrado tu entrada de hoy.")
 
         col_a, col_b = st.columns(2)
         with col_a:
@@ -463,12 +462,12 @@ def render_employee_view():
                 with st.expander(f"📌 {task['project']} - [{task['state']}]"):
                     col_t1, col_t2 = st.columns(2)
                     with col_t1:
-                        st.info(f"📅 *Inicio:* {task['start_time'] or 'Sin definir'}")
+                        st.info(f"📅 **Inicio:** {task['start_time'] or 'Sin definir'}")
                     with col_t2:
-                        st.warning(f"⏰ *Límite:* {task['end_time'] or 'Sin definir'}")
+                        st.warning(f"⏰ **Límite:** {task['end_time'] or 'Sin definir'}")
 
-                    st.write(f"*Descripción:* {task['description']}")
-                    st.write(f"*Observaciones previas:* {task['notes'] or 'Ninguna'}")
+                    st.write(f"**Descripción:** {task['description']}")
+                    st.write(f"**Observaciones previas:** {task['notes'] or 'Ninguna'}")
 
                     col_act1, col_act2 = st.columns(2)
                     with col_act1:
@@ -515,24 +514,37 @@ def render_employee_view():
                             st.rerun()
 
                     st.divider()
-                    st.markdown("💬 *Feedback y Comunicación*")
-                    comentarios = obtener_comentarios(task["id"])
-                    chat_container = st.container(height=200)
-                    with chat_container:
-                        if comentarios:
-                            for c in comentarios:
-                                st.caption(f"*{c['Autor']} ({c['Rol']})* - {c['Fecha']}")
-                                st.write(f"└ {c['Mensaje']}")
-                        else:
-                            st.info("No hay mensajes. Usa este espacio para comunicarte con el administrador.")
+                    st.markdown("💬 **Feedback y Comunicación**")
+                    
+                    render_chat_fragment(task["id"], "Empleado")
 
+                    # CAMPO ADJUNTO + MENSAJE
+                    uploaded_file_emp = st.file_uploader("📎 Adjuntar Archivo", key=f"file_emp_{task['id']}")
                     col_msg1, col_msg2 = st.columns([3, 1])
                     with col_msg1:
                         reply_msg = st.text_input("Agregar comentario...", key=f"input_emp_{task['id']}", label_visibility="collapsed")
                     with col_msg2:
                         if st.button("Enviar", key=f"send_emp_{task['id']}", use_container_width=True):
-                            agregar_comentario(task["id"], user["name"], "Empleado", reply_msg)
-                            st.rerun()
+                            file_link = ""
+                            if uploaded_file_emp and drive_service:
+                                file_bytes = uploaded_file_emp.getvalue()
+                                drive_res = drive_service.upload_file(
+                                    file_data=file_bytes,
+                                    file_name=uploaded_file_emp.name,
+                                    mime_type=uploaded_file_emp.type
+                                )
+                                if drive_res and "webViewLink" in drive_res:
+                                    file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_emp.name}]({drive_res['webViewLink']})"
+                                    st.success("Archivo subido a Google Drive.")
+                                else:
+                                    st.error("Error al subir el archivo a Google Drive.")
+
+                            final_message = (reply_msg + file_link).strip()
+                            if final_message:
+                                agregar_comentario(task["id"], user["name"], "Empleado", final_message)
+                                st.rerun()
+                            else:
+                                st.warning("Escribe un mensaje o adjunta un archivo.")
         else:
             st.info("No tienes tareas asignadas para el día de hoy.")
 
@@ -562,15 +574,6 @@ def render_employee_view():
                         st.success("✅ Contraseña actualizada con éxito.")
                     else:
                         st.error("❌ La contraseña actual es incorrecta.")
-
-# -----------------------------------------------------------------------------
-# DEFINICIÓN DEL MODAL (NUEVA VENTANA EMERGENTE)
-# -----------------------------------------------------------------------------
-@st.dialog("✅ Confirmación")
-def modal_exito_tarea():
-    st.success("Tarea creada y asignada exitosamente.")
-    if st.button("Aceptar", type="primary", use_container_width=True):
-        st.rerun()
 
 # -----------------------------------------------------------------------------
 # VISTAS DE ADMINISTRADOR
@@ -652,8 +655,8 @@ def render_admin_view():
                 icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else '📌')
                 
                 with st.expander(f"{icon} {task['project']} | {task['emp']} — [{task['state']}]"):
-                    st.write(f"*Descripción:* {task['description']}")
-                    st.write(f"*Reporte/Archivos adjuntos:* {task['notes'] or 'Sin reportes enviados'}")
+                    st.write(f"**Descripción:** {task['description']}")
+                    st.write(f"**Reporte/Archivos adjuntos:** {task['notes'] or 'Sin reportes enviados'}")
 
                     col_btn1, col_btn2, col_btn3 = st.columns(3)
                     with col_btn1:
@@ -670,25 +673,37 @@ def render_admin_view():
                             st.rerun()
 
                     st.divider()
-                    st.markdown("💬 *Chat de la Tarea*")
-                    comentarios = obtener_comentarios(task["id"])
+                    st.markdown("💬 **Chat de la Tarea**")
                     
-                    chat_container = st.container(height=200)
-                    with chat_container:
-                        if comentarios:
-                            for c in comentarios:
-                                st.caption(f"*{c['Autor']} ({c['Rol']})* - {c['Fecha']}")
-                                st.write(f"└ {c['Mensaje']}")
-                        else:
-                            st.info("Inicia la comunicación para dar feedback al empleado.")
+                    render_chat_fragment(task["id"], "Administrador")
 
+                    # CAMPO ADJUNTO + MENSAJE (ADMIN)
+                    uploaded_file_admin = st.file_uploader("📎 Adjuntar Archivo", key=f"file_admin_{task['id']}")
                     col_msg1, col_msg2 = st.columns([3, 1])
                     with col_msg1:
                         nuevo_msg = st.text_input("Instrucciones u observaciones...", key=f"input_admin_{task['id']}", label_visibility="collapsed")
                     with col_msg2:
                         if st.button("Enviar Feedback", key=f"send_admin_{task['id']}", use_container_width=True):
-                            agregar_comentario(task["id"], st.session_state.user["name"], "Administrador", nuevo_msg)
-                            st.rerun()
+                            file_link = ""
+                            if uploaded_file_admin and drive_service:
+                                file_bytes = uploaded_file_admin.getvalue()
+                                drive_res = drive_service.upload_file(
+                                    file_data=file_bytes,
+                                    file_name=uploaded_file_admin.name,
+                                    mime_type=uploaded_file_admin.type
+                                )
+                                if drive_res and "webViewLink" in drive_res:
+                                    file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_admin.name}]({drive_res['webViewLink']})"
+                                    st.success("Archivo subido a Google Drive.")
+                                else:
+                                    st.error("Error al subir el archivo a Google Drive.")
+
+                            final_message = (nuevo_msg + file_link).strip()
+                            if final_message:
+                                agregar_comentario(task["id"], st.session_state.user["name"], "Administrador", final_message)
+                                st.rerun()
+                            else:
+                                st.warning("Escribe un mensaje o adjunta un archivo.")
         else:
             st.info("No hay tareas registradas hoy.")
 
@@ -753,8 +768,8 @@ def render_admin_view():
                                 dt_entrega.strftime("%Y-%m-%d %H:%M:%S"),
                             ),
                         )
-                        # LLAMADA A LA VENTANA EMERGENTE
-                        modal_exito_tarea()
+                        st.success("Tarea asignada exitosamente.")
+                        st.rerun()
 
     # GESTIÓN DE PERSONAL
     with tab3:
@@ -849,7 +864,14 @@ def render_admin_view():
                         st.success("✅ Contraseña actualizada con éxito.")
                     else:
                         st.error("❌ La contraseña actual es incorrecta.")
-
+# -----------------------------------------------------------------------------
+# DEFINICIÓN DEL MODAL (NUEVA VENTANA EMERGENTE)
+# -----------------------------------------------------------------------------
+@st.dialog("✅ Confirmación")
+def modal_exito_tarea():
+    st.success("Tarea creada y asignada exitosamente.")
+    if st.button("Aceptar", type="primary", use_container_width=True):
+        st.rerun()
 # -----------------------------------------------------------------------------
 # CONTROL DE FLUJO PRINCIPAL Y NOTIFICACIONES
 # -----------------------------------------------------------------------------

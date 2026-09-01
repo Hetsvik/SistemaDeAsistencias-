@@ -91,6 +91,59 @@ class GoogleDriveService:
             return None
 
     # =========================================================
+    # BUSCAR O CREAR CARPETA (NUEVO)
+    # =========================================================
+
+    def get_or_create_folder(
+        self,
+        folder_name,
+        parent_id=None
+    ):
+        """
+        Busca una carpeta por nombre dentro de parent_id.
+        Si existe, retorna su ID.
+        Si no existe, la crea y retorna el nuevo ID.
+        """
+        try:
+            if parent_id is None:
+                parent_id = self.root_folder_id
+
+            # Escapar comillas simples en el nombre de la carpeta para evitar errores en la query
+            safe_folder_name = folder_name.replace("'", "\\'")
+
+            # Consulta para verificar si existe la carpeta activa (no en la papelera)
+            query_str = (
+                f"mimeType = 'application/vnd.google-apps.folder' and "
+                f"name = '{safe_folder_name}' and "
+                f"'{parent_id}' in parents and "
+                f"trashed = false"
+            )
+
+            results = self.service.files().list(
+                q=query_str,
+                spaces="drive",
+                fields="files(id, name)",
+                pageSize=1
+            ).execute()
+
+            files = results.get("files", [])
+
+            # Si ya existe la carpeta, retornar su ID
+            if files:
+                return files[0]["id"]
+
+            # Si no existe, la creamos
+            new_folder = self.create_folder(folder_name, parent_folder_id=parent_id)
+            if new_folder and "id" in new_folder:
+                return new_folder["id"]
+
+            return None
+
+        except HttpError as e:
+            print(f"Error al buscar o crear la carpeta '{folder_name}': {e}")
+            return None
+
+    # =========================================================
     # SUBIR ARCHIVO
     # =========================================================
 
@@ -99,12 +152,12 @@ class GoogleDriveService:
         file_data,
         file_name,
         mime_type=None,
-        parent_folder_id=None
+        parent_folder_id=None,
+        folder_id=None  # Acepta folder_id como alias para mantener compatibilidad
     ):
         try:
 
-            if parent_folder_id is None:
-                parent_folder_id = self.root_folder_id
+            target_folder = folder_id or parent_folder_id or self.root_folder_id
 
             if mime_type is None:
 
@@ -115,7 +168,7 @@ class GoogleDriveService:
 
             metadata = {
                 "name": file_name,
-                "parents": [parent_folder_id]
+                "parents": [target_folder]
             }
 
             media = MediaIoBaseUpload(

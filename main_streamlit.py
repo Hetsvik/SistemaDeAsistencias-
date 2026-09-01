@@ -15,7 +15,6 @@ try:
 except Exception as e:
     # Registra o muestra el error si las credenciales fallan
     print(f"Error al inicializar GoogleDriveService: {e}")
-drive = GoogleDriveService()
 
 # Configuración de página
 st.set_page_config(
@@ -250,7 +249,8 @@ if st.session_state.user is None and "user_id" in st.query_params:
     if saved_role == "Administrador":
         user_data = query(
             """
-            SELECT A.ID_Administrador AS id, E.Nombre_Completo AS name, 'Administrador' AS role
+            SELECT A.ID_Administrador AS id, E.Nombre_Completo AS name,
+                   A.Codigo_Administrador AS code, 'Administrador' AS role
             FROM Administrador A
             JOIN Empleados E ON E.ID_Empleado = A.ID_Empleado
             WHERE A.ID_Administrador = %s
@@ -261,7 +261,8 @@ if st.session_state.user is None and "user_id" in st.query_params:
     elif saved_role == "Empleado":
         user_data = query(
             """
-            SELECT W.ID_Trabajador AS id, E.Nombre_Completo AS name, 'Empleado' AS role
+            SELECT W.ID_Trabajador AS id, E.Nombre_Completo AS name,
+                   W.Codigo_Trabajador AS code, 'Empleado' AS role
             FROM Trabajadores W
             JOIN Empleados E ON E.ID_Empleado = W.ID_Empleado
             WHERE W.ID_Trabajador = %s
@@ -562,18 +563,26 @@ def render_employee_view():
                                 if drive_service is None:
                                     st.error("⚠️ El servicio de Google Drive no está disponible.")
                                 else:
-                                    file_bytes = uploaded_file_emp.getvalue()
-                                    drive_res = drive_service.upload_file(
-                                        file_data=file_bytes,
-                                        file_name=uploaded_file_emp.name,
-                                        mime_type=uploaded_file_emp.type,
-                                        parent_folder_id="1cTZWH0ENvx740PvCDv8TNer26Pgi1ppn"
+                                    user_folder_id = drive_service.get_user_folder(
+                                        role=user.get("role", "Empleado"),
+                                        code=user.get("code"),
+                                        full_name=user.get("name"),
                                     )
-                                    if drive_res and "webViewLink" in drive_res:
-                                        file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_emp.name}]({drive_res['webViewLink']})"
-                                        st.success("Archivo subido a Google Drive.")
+                                    if user_folder_id is None:
+                                        st.error("⚠️ No se pudo crear/ubicar tu carpeta personal en Google Drive.")
                                     else:
-                                        st.error("Error al subir el archivo a Google Drive.")
+                                        file_bytes = uploaded_file_emp.getvalue()
+                                        drive_res = drive_service.upload_file(
+                                            file_data=file_bytes,
+                                            file_name=uploaded_file_emp.name,
+                                            mime_type=uploaded_file_emp.type,
+                                            parent_folder_id=user_folder_id
+                                        )
+                                        if drive_res and "webViewLink" in drive_res:
+                                            file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_emp.name}]({drive_res['webViewLink']})"
+                                            st.success("Archivo subido a Google Drive.")
+                                        else:
+                                            st.error("Error al subir el archivo a Google Drive.")
 
                             final_message = (reply_msg + file_link).strip()
                             if final_message:
@@ -742,18 +751,27 @@ def render_admin_view():
                                 if drive_service is None:
                                     st.error("⚠️ El servicio de Google Drive no está disponible.")
                                 else:
-                                    file_bytes = uploaded_file_admin.getvalue()
-                                    drive_res = drive_service.upload_file(
-                                        file_data=file_bytes,
-                                        file_name=uploaded_file_admin.name,
-                                        mime_type=uploaded_file_admin.type,
-                                        parent_folder_id="1cTZWH0ENvx740PvCDv8TNer26Pgi1ppn" 
+                                    admin_user = st.session_state.user
+                                    user_folder_id = drive_service.get_user_folder(
+                                        role=admin_user.get("role", "Administrador"),
+                                        code=admin_user.get("code"),
+                                        full_name=admin_user.get("name"),
                                     )
-                                    if drive_res and "webViewLink" in drive_res:
-                                        file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_admin.name}]({drive_res['webViewLink']})"
-                                        st.success("Archivo subido a Google Drive.")
+                                    if user_folder_id is None:
+                                        st.error("⚠️ No se pudo crear/ubicar tu carpeta personal en Google Drive.")
                                     else:
-                                        st.error("Error al subir el archivo a Google Drive.")
+                                        file_bytes = uploaded_file_admin.getvalue()
+                                        drive_res = drive_service.upload_file(
+                                            file_data=file_bytes,
+                                            file_name=uploaded_file_admin.name,
+                                            mime_type=uploaded_file_admin.type,
+                                            parent_folder_id=user_folder_id
+                                        )
+                                        if drive_res and "webViewLink" in drive_res:
+                                            file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_admin.name}]({drive_res['webViewLink']})"
+                                            st.success("Archivo subido a Google Drive.")
+                                        else:
+                                            st.error("Error al subir el archivo a Google Drive.")
 
                             final_message = (nuevo_msg + file_link).strip()
                             if final_message:
@@ -967,69 +985,32 @@ else:
         with st.expander(titulo_campana):
             if cantidad > 0:
                 for i, notif in enumerate(notificaciones):
-                   if st.session_state.user["role"] == "Empleado":
-            # Agregamos T.ID_Tarea a la consulta para usarlo como key única en los botones
-            notificaciones = query(
-                """
-                SELECT T.ID_Tarea AS id, P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS descr
-                FROM Tareas T
-                JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
-                WHERE T.ID_Trabajador = %s AND T.Estado_Tarea = 'Asignada' AND T.Fecha = %s
-                ORDER BY T.ID_Tarea DESC
-                """,
-                (st.session_state.user["id"], today_date),
-            )
-        elif st.session_state.user["role"] == "Administrador":
-            # Agregamos T.ID_Tarea y T.Estado_Tarea a la consulta
-            notificaciones = query(
-                """
-                SELECT T.ID_Tarea AS id, E.Nombre_Completo AS emp, P.Nombre_Proyecto AS project, 
-                       T.Descripcion_Tarea AS descr, T.Observaciones AS notes, T.Estado_Tarea AS state
-                FROM Tareas T
-                JOIN Trabajadores W ON W.ID_Trabajador = T.ID_Trabajador
-                JOIN Empleados E ON E.ID_Empleado = W.ID_Empleado
-                JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
-                WHERE T.Estado_Tarea IN ('Enviar a Revisión', 'En Revisión', 'Completada') AND T.Fecha = %s
-                ORDER BY T.ID_Tarea DESC
-                """,
-                (today_date,),
-            )
-        else:
-            notificaciones = []
-
-        cantidad = len(notificaciones) if notificaciones else 0
-        titulo_campana = f"🔔 Notificaciones ({cantidad})" if cantidad > 0 else "🔔 Notificaciones"
-
-        with st.expander(titulo_campana):
-            if cantidad > 0:
-                for i, notif in enumerate(notificaciones):
                     if st.session_state.user["role"] == "Empleado":
                         if st.button(
-                            f"📌 {notif['project']}\n{notif['descr']}",
-                            key=f"notif_emp_{notif['id']}",
-                            use_container_width=True
+                            f"📌 {notif['project']}\n\n{notif['descr']}",
+                            key=f"notif_emp_{i}_{notif['project']}",
                         ):
-                            # Navegación directa para el empleado
                             st.session_state.emp_nav = "📋 Mis Tareas del Día"
                             st.rerun()
                     else:
-                        # LÓGICA DE BOTONES PARA EL ADMINISTRADOR
-                        es_fuera_de_plazo = bool(notif.get("notes") and "[ENTREGADO FUERA DE PLAZO]" in notif["notes"])
-                        
+                        es_fuera_de_plazo = bool(
+                            notif.get("notes") and "[ENTREGADO FUERA DE PLAZO]" in notif["notes"]
+                        )
                         if es_fuera_de_plazo:
-                            texto_btn = f"⚠️ FUERA DE PLAZO\n{notif['emp']}\n📌 {notif['project']}"
-                        elif notif['state'] == 'Completada':
-                            texto_btn = f"✅ COMPLETADA\n{notif['emp']}\n📌 {notif['project']}"
+                            st.error(
+                                f"⚠️ **ENTREGA FUERA DE PLAZO**\n\n"
+                                f"**{notif['emp']}** envió su reporte a destiempo.\n\n"
+                                f"📌 **Proyecto:** {notif['project']}\n"
+                                f"📝 **Tarea:** {notif['descr']}"
+                            )
                         else:
-                            texto_btn = f"⏳ REVISAR\n{notif['emp']}\n📌 {notif['project']}"
-                        
-                        if st.button(texto_btn, key=f"notif_admin_{notif['id']}", use_container_width=True):
-                            # Streamlit por defecto renderiza la primera pestaña al hacer rerun
-                            st.rerun()
+                            mensaje = f"✅ **{notif['emp']}** solicita revisión o completó a tiempo:\n\n📌 {notif['project']} - {notif['descr']}"
+                            st.info(mensaje)
             else:
                 st.write("No hay notificaciones nuevas.")
 
         st.divider()
+
         if st.button("🚪 Cerrar Sesión", use_container_width=True):
             st.session_state.clear()
             st.query_params.clear()

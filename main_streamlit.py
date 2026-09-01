@@ -686,17 +686,19 @@ def render_admin_view():
         )
 
         if tasks_monitoreo:
-            for task in tasks_monitoreo:
-                icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else ('⏳' if task['state'] == 'En Revisión' else '📌'))
+           for task in tasks_monitoreo:
+                # CAMBIO 1: Añadimos 'Enviar a Revisión' a la validación del icono
+                icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else ('⏳' if task['state'] in ('Enviar a Revisión', 'En Revisión') else '📌'))
                 
                 with st.expander(f"{icon} {task['project']} | {task['emp']} — [{task['state']}]"):
-                    st.write(f"**Descripción:** {task['description']}")
-                    st.write(f"**Reporte/Entregable del empleado:** {task['notes'] or 'Sin reportes enviados'}")
+                    st.write(f"*Descripción:* {task['description']}")
+                    st.write(f"*Reporte/Entregable del empleado:* {task['notes'] or 'Sin reportes enviados'}")
 
                     # BOTONES DINÁMICOS SEGÚN ESTADO OPERATIVO
                     col_btn1, col_btn2 = st.columns(2)
                     
-                    if task['state'] == 'En Revisión':
+                    # CAMBIO 2: Cambiamos el "==" por un "in" para que acepte ambas opciones
+                    if task['state'] in ('Enviar a Revisión', 'En Revisión'):
                         with col_btn1:
                             if st.button("✅ Aprobar Tarea", key=f"approve_{task['id']}", type="primary", use_container_width=True):
                                 execute("UPDATE Tareas SET Estado_Tarea='Completada' WHERE ID_Tarea=%s", (task["id"],))

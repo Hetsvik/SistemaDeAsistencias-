@@ -56,6 +56,12 @@ class GoogleDriveService:
             "google_drive_folder_id"
         ]
 
+        # Guarda el último error de la API para poder mostrarlo en la UI
+        self._last_error = None
+
+    def get_last_error(self):
+        return self._last_error
+
     # =========================================================
     # CREAR CARPETA
     # =========================================================
@@ -79,7 +85,8 @@ class GoogleDriveService:
 
             folder = self.service.files().create(
                 body=metadata,
-                fields="id,name"
+                fields="id,name",
+                supportsAllDrives=True
             ).execute()
 
             return folder
@@ -123,7 +130,10 @@ class GoogleDriveService:
                 q=query_str,
                 spaces="drive",
                 fields="files(id, name)",
-                pageSize=1
+                pageSize=1,
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True,
+                corpora="allDrives"
             ).execute()
 
             files = results.get("files", [])
@@ -230,14 +240,22 @@ class GoogleDriveService:
             uploaded_file = self.service.files().create(
                 body=metadata,
                 media_body=media,
-                fields="id,name,mimeType,size,webViewLink"
+                fields="id,name,mimeType,size,webViewLink",
+                supportsAllDrives=True
             ).execute()
 
             return uploaded_file
 
         except HttpError as e:
 
-            print(f"Error subiendo archivo: {e}")
+            # Mensaje explícito: la causa más común de fallo aquí es que
+            # la carpeta destino es una carpeta normal de "Mi unidad" y no
+            # una Unidad compartida. Las cuentas de servicio tienen 0 bytes
+            # de cuota propia, así que no pueden "poseer" contenido subido
+            # fuera de una Unidad compartida, aunque sí puedan crear carpetas.
+            print(f"Error subiendo archivo a la carpeta '{target_folder}': {e}")
+
+            self._last_error = str(e)
 
             return None
 
@@ -254,7 +272,8 @@ class GoogleDriveService:
                 fields=(
                     "id,name,mimeType,size,"
                     "createdTime,modifiedTime,webViewLink"
-                )
+                ),
+                supportsAllDrives=True
             ).execute()
 
             return file
@@ -274,7 +293,8 @@ class GoogleDriveService:
         try:
 
             request = self.service.files().get_media(
-                fileId=file_id
+                fileId=file_id,
+                supportsAllDrives=True
             )
 
             file_buffer = io.BytesIO()
@@ -309,7 +329,8 @@ class GoogleDriveService:
         try:
 
             self.service.files().delete(
-                fileId=file_id
+                fileId=file_id,
+                supportsAllDrives=True
             ).execute()
 
             return True

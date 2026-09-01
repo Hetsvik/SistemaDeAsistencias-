@@ -5,8 +5,8 @@ import streamlit as st
 from zoneinfo import ZoneInfo
 from services.google_drive_service import GoogleDriveService
 
-
 drive = GoogleDriveService()
+
 # Configuración de página
 st.set_page_config(
     page_title="Control de Asistencia Corporativo",
@@ -43,14 +43,12 @@ st.markdown("""<style>
     [data-testid="stSidebar"] {
         background-color: #0F172A !important;
     }
-    /* Texto general del sidebar a blanco */
     [data-testid="stSidebar"] p, 
     [data-testid="stSidebar"] span, 
     [data-testid="stSidebar"] label,
     [data-testid="stSidebar"] div[data-testid="stText"] {
         color: #F8FAFC !important;
     }
-    /* Arreglo para la etiqueta del Rol */
     [data-testid="stSidebar"] code {
         color: #0F172A !important;
         background-color: #E2E8F0 !important;
@@ -58,7 +56,6 @@ st.markdown("""<style>
         padding: 4px 8px !important;
         border-radius: 4px !important;
     }
-    /* Arreglo para el botón "Cerrar Sesión" en el Sidebar */
     [data-testid="stSidebar"] .stButton > button {
         background-color: #1E293B !important;
         border: 1px solid #334155 !important;
@@ -127,28 +124,15 @@ st.markdown("""<style>
         background-color: #EFF6FF !important;
         border-color: #1E3A8A !important;
     }
-    
-    /* Logo de la empresa */
-    .brand-header {
-        display: flex;
-        align-items: center;
-        padding: 10px 0px 20px 0px;
-    }
-    .brand-header img {
-        max-width: 180px;
-        height: auto;
-    }
     </style>
 """, unsafe_allow_html=True)
 
-# Render del Logo en la esquina del Sidebar
 with st.sidebar:
     try:
         st.image("logo.png", use_container_width=True)
     except Exception:
-        st.markdown("### *EMPRESA*")
+        st.markdown("### **EMPRESA**")
         
-    # Información formal de la empresa
     st.markdown("""
         <div class="sidebar-company-card">
             <div class="sidebar-company-name">
@@ -164,11 +148,9 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 def now_local():
-    """Retorna la fecha y hora actual en zona horaria local (UTC-5)"""
     return datetime.now(ZoneInfo("America/Lima"))
 
 def today_local():
-    """Retorna únicamente la fecha de hoy en zona horaria local (UTC-5)"""
     return datetime.now(ZoneInfo("America/Lima")).date()
 
 # -----------------------------------------------------------------------------
@@ -215,7 +197,7 @@ def execute(sql, params=()):
         st.stop()
 
 # -----------------------------------------------------------------------------
-# LÓGICA DE COMENTARIOS Y CHAT (CLICKUP STYLE)
+# LÓGICA DE COMENTARIOS Y CHAT
 # -----------------------------------------------------------------------------
 def obtener_comentarios(id_tarea):
     return query(
@@ -230,8 +212,23 @@ def agregar_comentario(id_tarea, autor, rol, mensaje):
             (id_tarea, autor, rol, mensaje.strip()),
         )
 
+@st.fragment(run_every="10s")
+def render_chat_fragment(id_tarea, rol_usuario):
+    comentarios = obtener_comentarios(id_tarea)
+    chat_container = st.container(height=200)
+    with chat_container:
+        if comentarios:
+            for c in comentarios:
+                st.caption(f"**{c['Autor']} ({c['Rol']})** - {c['Fecha']}")
+                st.write(f"└ {c['Mensaje']}")
+        else:
+            if rol_usuario == "Empleado":
+                st.info("No hay mensajes. Usa este espacio para comunicarte con el administrador.")
+            else:
+                st.info("Inicia la comunicación para dar feedback al empleado.")
+
 # -----------------------------------------------------------------------------
-# MANEJO DE SESIÓN Y PERSISTENCIA (F5)
+# MANEJO DE SESIÓN Y PERSISTENCIA
 # -----------------------------------------------------------------------------
 if "user" not in st.session_state:
     st.session_state.user = None
@@ -304,7 +301,6 @@ def login(code, pin, role):
         )
     else:
         return None
-
     return user
 
 # -----------------------------------------------------------------------------
@@ -334,6 +330,16 @@ def render_login():
                 st.rerun()
             else:
                 st.error("❌ Código, Contraseña o perfil incorrecto.")
+
+# -----------------------------------------------------------------------------
+# DEFINICIÓN DEL MODAL (NUEVA VENTANA EMERGENTE)
+# -----------------------------------------------------------------------------
+@st.dialog("✅ Confirmación")
+def modal_exito_tarea():
+    st.success("Tarea creada y asignada exitosamente.")
+    if st.button("Aceptar", type="primary", use_container_width=True):
+        st.rerun()
+
 # -----------------------------------------------------------------------------
 # VISTAS DE EMPLEADO
 # -----------------------------------------------------------------------------
@@ -459,6 +465,10 @@ def render_employee_view():
 
         if tasks:
             for task in tasks:
+                is_blocked = (task['state'] == 'Bloqueada')
+                is_completed = (task['state'] == 'Completada')
+                is_in_review = (task['state'] == 'En Revisión')
+
                 with st.expander(f"📌 {task['project']} - [{task['state']}]"):
                     col_t1, col_t2 = st.columns(2)
                     with col_t1:
@@ -467,30 +477,42 @@ def render_employee_view():
                         st.warning(f"⏰ **Límite:** {task['end_time'] or 'Sin definir'}")
 
                     st.write(f"**Descripción:** {task['description']}")
-                    st.write(f"**Observaciones previas:** {task['notes'] or 'Ninguna'}")
+                    st.write(f"**Observaciones previas / Reportes:** {task['notes'] or 'Ninguna'}")
+
+                    if is_blocked:
+                        st.error("⏸️ **Tarea Pausada:** El administrador ha congelado esta tarea temporalmente. No puedes realizar cambios.")
+                    elif is_completed:
+                        st.success("🎉 **Tarea Aprobada:** La administración ha verificado y finalizado esta tarea.")
+                    elif is_in_review:
+                        st.info("⏳ **En Revisión:** Tu reporte fue enviado al administrador. Esperando aprobación.")
 
                     col_act1, col_act2 = st.columns(2)
                     with col_act1:
+                        emp_options = ["Asignada", "En Progreso", "Enviar a Revisión"]
+                        curr_idx = emp_options.index(task['state']) if task['state'] in emp_options else 0
+                        
                         new_state = st.selectbox(
                             "Actualizar Estado",
-                            ["Asignada", "En Progreso", "Completada", "Bloqueada"],
+                            emp_options,
+                            index=curr_idx,
+                            disabled=(is_blocked or is_completed),
                             key=f"st_{task['id']}",
                         )
                     with col_act2:
                         new_notes = st.text_input(
-                            "Observaciones adicionales (Opcional)",
+                            "Detalles / Reporte de entrega",
                             value="",
+                            disabled=(is_blocked or is_completed),
                             key=f"nt_{task['id']}",
                         )
 
-                    if st.button("Actualizar Tarea", key=f"btn_{task['id']}", use_container_width=True):
-                        if new_state == "Bloqueada" and not new_notes.strip():
-                            st.warning("Debes ingresar una observación si bloqueas la tarea.")
+                    if st.button("Actualizar Tarea", key=f"btn_{task['id']}", disabled=(is_blocked or is_completed), use_container_width=True):
+                        if new_state == "Enviar a Revisión" and not new_notes.strip() and not task["notes"]:
+                            st.warning("⚠️ Debes agregar un comentario o reporte detallando la entrega antes de enviar a revisión.")
                         else:
                             final_notes = task["notes"] or ""
-
                             if new_notes.strip():
-                                final_notes += f"\nNote: {new_notes.strip()}"
+                                final_notes += f"\nReporte: {new_notes.strip()}"
 
                             if task["end_time"]:
                                 limit_dt = (
@@ -510,7 +532,7 @@ def render_employee_view():
                                 "UPDATE Tareas SET Estado_Tarea=%s, Observaciones=%s WHERE ID_Tarea=%s AND ID_Trabajador=%s",
                                 (new_state, final_notes.strip(), task["id"], user["id"]),
                             )
-                            st.success("Tarea actualizada correctamente.")
+                            st.success("Estado actualizado correctamente.")
                             st.rerun()
 
                     st.divider()
@@ -518,7 +540,7 @@ def render_employee_view():
                     
                     render_chat_fragment(task["id"], "Empleado")
 
-                    # CAMPO ADJUNTO + MENSAJE
+                    # CAMPO ADJUNTO + MENSAJE (EMPLEADO)
                     uploaded_file_emp = st.file_uploader("📎 Adjuntar Archivo", key=f"file_emp_{task['id']}")
                     col_msg1, col_msg2 = st.columns([3, 1])
                     with col_msg1:
@@ -526,9 +548,9 @@ def render_employee_view():
                     with col_msg2:
                         if st.button("Enviar", key=f"send_emp_{task['id']}", use_container_width=True):
                             file_link = ""
-                            if uploaded_file_emp and drive_service:
+                            if uploaded_file_emp and drive:
                                 file_bytes = uploaded_file_emp.getvalue()
-                                drive_res = drive_service.upload_file(
+                                drive_res = drive.upload_file(
                                     file_data=file_bytes,
                                     file_name=uploaded_file_emp.name,
                                     mime_type=uploaded_file_emp.type
@@ -589,7 +611,6 @@ def render_admin_view():
     with tab1:
         st.subheader("Asistencia del Día")
         
-        # LEFT JOIN para traer a todos los trabajadores activos
         attendance_raw = query(
             """
             SELECT E.Nombre_Completo AS Empleado, 
@@ -652,25 +673,41 @@ def render_admin_view():
 
         if tasks_monitoreo:
             for task in tasks_monitoreo:
-                icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else '📌')
+                icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else ('⏳' if task['state'] == 'En Revisión' else '📌'))
                 
                 with st.expander(f"{icon} {task['project']} | {task['emp']} — [{task['state']}]"):
                     st.write(f"**Descripción:** {task['description']}")
-                    st.write(f"**Reporte/Archivos adjuntos:** {task['notes'] or 'Sin reportes enviados'}")
+                    st.write(f"**Reporte/Entregable del empleado:** {task['notes'] or 'Sin reportes enviados'}")
 
-                    col_btn1, col_btn2, col_btn3 = st.columns(3)
-                    with col_btn1:
-                        if st.button("⏸️ Pausar", key=f"pause_{task['id']}", use_container_width=True):
-                            execute("UPDATE Tareas SET Estado_Tarea='Bloqueada' WHERE ID_Tarea=%s", (task["id"],))
-                            st.rerun()
-                    with col_btn2:
-                        if st.button("▶️ Reanudar", key=f"resume_{task['id']}", use_container_width=True):
-                            execute("UPDATE Tareas SET Estado_Tarea='En Progreso' WHERE ID_Tarea=%s", (task["id"],))
-                            st.rerun()
-                    with col_btn3:
-                        if st.button("✅ Aprobar", key=f"approve_{task['id']}", use_container_width=True):
-                            execute("UPDATE Tareas SET Estado_Tarea='Completada' WHERE ID_Tarea=%s", (task["id"],))
-                            st.rerun()
+                    # BOTONES DINÁMICOS SEGÚN ESTADO OPERATIVO
+                    col_btn1, col_btn2 = st.columns(2)
+                    
+                    if task['state'] == 'En Revisión':
+                        with col_btn1:
+                            if st.button("✅ Aprobar Tarea", key=f"approve_{task['id']}", type="primary", use_container_width=True):
+                                execute("UPDATE Tareas SET Estado_Tarea='Completada' WHERE ID_Tarea=%s", (task["id"],))
+                                st.success("Tarea aprobada y marcada como Completada.")
+                                st.rerun()
+                        with col_btn2:
+                            if st.button("🔄 Solicitar Cambios", key=f"reject_{task['id']}", use_container_width=True):
+                                execute("UPDATE Tareas SET Estado_Tarea='En Progreso' WHERE ID_Tarea=%s", (task["id"],))
+                                st.warning("Tarea devuelta al empleado para correcciones.")
+                                st.rerun()
+
+                    elif task['state'] in ('En Progreso', 'Asignada'):
+                        with col_btn1:
+                            if st.button("⏸️ Pausar Tarea", key=f"pause_{task['id']}", use_container_width=True):
+                                execute("UPDATE Tareas SET Estado_Tarea='Bloqueada' WHERE ID_Tarea=%s", (task["id"],))
+                                st.rerun()
+
+                    elif task['state'] == 'Bloqueada':
+                        with col_btn1:
+                            if st.button("▶️ Reanudar Tarea", key=f"resume_{task['id']}", use_container_width=True):
+                                execute("UPDATE Tareas SET Estado_Tarea='En Progreso' WHERE ID_Tarea=%s", (task["id"],))
+                                st.rerun()
+
+                    elif task['state'] == 'Completada':
+                        st.success("✅ Tarea Aprobada y Cerrada.")
 
                     st.divider()
                     st.markdown("💬 **Chat de la Tarea**")
@@ -685,9 +722,9 @@ def render_admin_view():
                     with col_msg2:
                         if st.button("Enviar Feedback", key=f"send_admin_{task['id']}", use_container_width=True):
                             file_link = ""
-                            if uploaded_file_admin and drive_service:
+                            if uploaded_file_admin and drive:
                                 file_bytes = uploaded_file_admin.getvalue()
-                                drive_res = drive_service.upload_file(
+                                drive_res = drive.upload_file(
                                     file_data=file_bytes,
                                     file_name=uploaded_file_admin.name,
                                     mime_type=uploaded_file_admin.type
@@ -741,7 +778,6 @@ def render_admin_view():
                 f_entrega_time = st.time_input("Hora de Entrega")
 
             desc = st.text_area("Descripción")
-            state = st.selectbox("Estado", ["Asignada", "En Progreso"])
 
             if st.button("Asignar Tarea"):
                 if not desc.strip():
@@ -763,13 +799,12 @@ def render_admin_view():
                                 st.session_state.user["id"],
                                 p_dict[selected_p],
                                 desc.strip(),
-                                state,
+                                "Asignada",
                                 dt_inicio.strftime("%Y-%m-%d %H:%M:%S"),
                                 dt_entrega.strftime("%Y-%m-%d %H:%M:%S"),
                             ),
                         )
-                        st.success("Tarea asignada exitosamente.")
-                        st.rerun()
+                        modal_exito_tarea()
 
     # GESTIÓN DE PERSONAL
     with tab3:
@@ -864,14 +899,7 @@ def render_admin_view():
                         st.success("✅ Contraseña actualizada con éxito.")
                     else:
                         st.error("❌ La contraseña actual es incorrecta.")
-# -----------------------------------------------------------------------------
-# DEFINICIÓN DEL MODAL (NUEVA VENTANA EMERGENTE)
-# -----------------------------------------------------------------------------
-@st.dialog("✅ Confirmación")
-def modal_exito_tarea():
-    st.success("Tarea creada y asignada exitosamente.")
-    if st.button("Aceptar", type="primary", use_container_width=True):
-        st.rerun()
+
 # -----------------------------------------------------------------------------
 # CONTROL DE FLUJO PRINCIPAL Y NOTIFICACIONES
 # -----------------------------------------------------------------------------
@@ -879,8 +907,8 @@ if st.session_state.user is None:
     render_login()
 else:
     with st.sidebar:
-        st.write(f"👤 *{st.session_state.user['name']}*")
-        st.write(f"💼 Rol: {st.session_state.user['role']}")
+        st.write(f"👤 **{st.session_state.user['name']}**")
+        st.write(f"💼 Rol: `{st.session_state.user['role']}`")
         st.divider()
 
         today_date = today_local()
@@ -905,7 +933,7 @@ else:
                 JOIN Trabajadores W ON W.ID_Trabajador = T.ID_Trabajador
                 JOIN Empleados E ON E.ID_Empleado = W.ID_Empleado
                 JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
-                WHERE T.Estado_Tarea = 'Completada' AND T.Fecha = %s
+                WHERE T.Estado_Tarea IN ('En Revisión', 'Completada') AND T.Fecha = %s
                 ORDER BY T.ID_Tarea DESC
                 """,
                 (today_date,),
@@ -932,14 +960,14 @@ else:
                         )
                         if es_fuera_de_plazo:
                             st.error(
-                                f"⚠️ *ENTREGA FUERA DE PLAZO*\n\n"
-                                f"*{notif['emp']}* envió su reporte a destiempo.\n\n"
-                                f"📌 *Proyecto:* {notif['project']}\n"
-                                f"📝 *Tarea:* {notif['descr']}"
+                                f"⚠️ **ENTREGA FUERA DE PLAZO**\n\n"
+                                f"**{notif['emp']}** envió su reporte a destiempo.\n\n"
+                                f"📌 **Proyecto:** {notif['project']}\n"
+                                f"📝 **Tarea:** {notif['descr']}"
                             )
                         else:
-                            mensaje = f"✅ *{notif['emp']}* completó a tiempo:\n\n📌 {notif['project']} - {notif['descr']}"
-                            st.success(mensaje)
+                            mensaje = f"✅ **{notif['emp']}** solicita revisión o completó a tiempo:\n\n📌 {notif['project']} - {notif['descr']}"
+                            st.info(mensaje)
             else:
                 st.write("No hay notificaciones nuevas.")
 

@@ -478,7 +478,7 @@ def render_employee_view():
             for task in tasks:
                 is_blocked = (task['state'] == 'Bloqueada')
                 is_completed = (task['state'] == 'Completada')
-                is_in_review = (task['state'] == 'En Revisión')
+                is_in_review = (task['state'] in ('Enviar a Revisión', 'En Revisión'))
 
                 with st.expander(f"📌 {task['project']} - [{task['state']}]"):
                     col_t1, col_t2 = st.columns(2)
@@ -695,18 +695,17 @@ def render_admin_view():
         )
 
         if tasks_monitoreo:
-           for task in tasks_monitoreo:
-                # CAMBIO 1: Añadimos 'Enviar a Revisión' a la validación del icono
+            for task in tasks_monitoreo:
+                # Icono dinámico y soporte para ambas variaciones de estado
                 icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else ('⏳' if task['state'] in ('Enviar a Revisión', 'En Revisión') else '📌'))
                 
                 with st.expander(f"{icon} {task['project']} | {task['emp']} — [{task['state']}]"):
-                    st.write(f"*Descripción:* {task['description']}")
-                    st.write(f"*Reporte/Entregable del empleado:* {task['notes'] or 'Sin reportes enviados'}")
+                    st.write(f"**Descripción:** {task['description']}")
+                    st.write(f"**Reporte/Entregable del empleado:** {task['notes'] or 'Sin reportes enviados'}")
 
                     # BOTONES DINÁMICOS SEGÚN ESTADO OPERATIVO
                     col_btn1, col_btn2 = st.columns(2)
                     
-                    # CAMBIO 2: Cambiamos el "==" por un "in" para que acepte ambas opciones
                     if task['state'] in ('Enviar a Revisión', 'En Revisión'):
                         with col_btn1:
                             if st.button("✅ Aprobar Tarea", key=f"approve_{task['id']}", type="primary", use_container_width=True):
@@ -954,7 +953,7 @@ else:
         if st.session_state.user["role"] == "Empleado":
             notificaciones = query(
                 """
-                SELECT P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS descr
+                SELECT T.ID_Tarea AS id, P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS descr
                 FROM Tareas T
                 JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
                 WHERE T.ID_Trabajador = %s AND T.Estado_Tarea = 'Asignada' AND T.Fecha = %s
@@ -965,13 +964,13 @@ else:
         elif st.session_state.user["role"] == "Administrador":
             notificaciones = query(
                 """
-                SELECT E.Nombre_Completo AS emp, P.Nombre_Proyecto AS project, 
-                       T.Descripcion_Tarea AS descr, T.Observaciones AS notes
+                SELECT T.ID_Tarea AS id, E.Nombre_Completo AS emp, P.Nombre_Proyecto AS project, 
+                       T.Descripcion_Tarea AS descr, T.Observaciones AS notes, T.Estado_Tarea AS state
                 FROM Tareas T
                 JOIN Trabajadores W ON W.ID_Trabajador = T.ID_Trabajador
                 JOIN Empleados E ON E.ID_Empleado = W.ID_Empleado
                 JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
-                WHERE T.Estado_Tarea IN ('En Revisión', 'Completada') AND T.Fecha = %s
+                WHERE T.Estado_Tarea IN ('Enviar a Revisión', 'En Revisión', 'Completada') AND T.Fecha = %s
                 ORDER BY T.ID_Tarea DESC
                 """,
                 (today_date,),
@@ -987,25 +986,24 @@ else:
                 for i, notif in enumerate(notificaciones):
                     if st.session_state.user["role"] == "Empleado":
                         if st.button(
-                            f"📌 {notif['project']}\n\n{notif['descr']}",
-                            key=f"notif_emp_{i}_{notif['project']}",
+                            f"📌 {notif['project']}\n{notif['descr']}",
+                            key=f"notif_emp_{notif['id']}",
+                            use_container_width=True
                         ):
                             st.session_state.emp_nav = "📋 Mis Tareas del Día"
                             st.rerun()
                     else:
-                        es_fuera_de_plazo = bool(
-                            notif.get("notes") and "[ENTREGADO FUERA DE PLAZO]" in notif["notes"]
-                        )
+                        es_fuera_de_plazo = bool(notif.get("notes") and "[ENTREGADO FUERA DE PLAZO]" in notif["notes"])
+                        
                         if es_fuera_de_plazo:
-                            st.error(
-                                f"⚠️ **ENTREGA FUERA DE PLAZO**\n\n"
-                                f"**{notif['emp']}** envió su reporte a destiempo.\n\n"
-                                f"📌 **Proyecto:** {notif['project']}\n"
-                                f"📝 **Tarea:** {notif['descr']}"
-                            )
+                            texto_btn = f"⚠️ FUERA DE PLAZO\n{notif['emp']}\n📌 {notif['project']}"
+                        elif notif['state'] == 'Completada':
+                            texto_btn = f"✅ COMPLETADA\n{notif['emp']}\n📌 {notif['project']}"
                         else:
-                            mensaje = f"✅ **{notif['emp']}** solicita revisión o completó a tiempo:\n\n📌 {notif['project']} - {notif['descr']}"
-                            st.info(mensaje)
+                            texto_btn = f"⏳ REVISAR\n{notif['emp']}\n📌 {notif['project']}"
+                        
+                        if st.button(texto_btn, key=f"notif_admin_{notif['id']}", use_container_width=True):
+                            st.rerun()
             else:
                 st.write("No hay notificaciones nuevas.")
 

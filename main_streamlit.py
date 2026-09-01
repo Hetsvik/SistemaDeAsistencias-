@@ -962,7 +962,7 @@ else:
         if st.session_state.user["role"] == "Empleado":
             notificaciones = query(
                 """
-                SELECT P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS descr
+                SELECT T.ID_Tarea AS id, P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS descr
                 FROM Tareas T
                 JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
                 WHERE T.ID_Trabajador = %s AND T.Estado_Tarea = 'Asignada' AND T.Fecha = %s
@@ -973,13 +973,13 @@ else:
         elif st.session_state.user["role"] == "Administrador":
             notificaciones = query(
                 """
-                SELECT E.Nombre_Completo AS emp, P.Nombre_Proyecto AS project, 
-                       T.Descripcion_Tarea AS descr, T.Observaciones AS notes
+                SELECT T.ID_Tarea AS id, E.Nombre_Completo AS emp, P.Nombre_Proyecto AS project, 
+                       T.Descripcion_Tarea AS descr, T.Observaciones AS notes, T.Estado_Tarea AS state
                 FROM Tareas T
                 JOIN Trabajadores W ON W.ID_Trabajador = T.ID_Trabajador
                 JOIN Empleados E ON E.ID_Empleado = W.ID_Empleado
                 JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
-                WHERE T.Estado_Tarea IN ('En Revisión', 'Completada') AND T.Fecha = %s
+                WHERE T.Estado_Tarea IN ('Enviar a Revisión', 'En Revisión', 'Completada') AND T.Fecha = %s
                 ORDER BY T.ID_Tarea DESC
                 """,
                 (today_date,),
@@ -995,25 +995,24 @@ else:
                 for i, notif in enumerate(notificaciones):
                     if st.session_state.user["role"] == "Empleado":
                         if st.button(
-                            f"📌 {notif['project']}\n\n{notif['descr']}",
-                            key=f"notif_emp_{i}_{notif['project']}",
+                            f"📌 {notif['project']}\n{notif['descr']}",
+                            key=f"notif_emp_{notif['id']}",
+                            use_container_width=True
                         ):
                             st.session_state.emp_nav = "📋 Mis Tareas del Día"
                             st.rerun()
                     else:
-                        es_fuera_de_plazo = bool(
-                            notif.get("notes") and "[ENTREGADO FUERA DE PLAZO]" in notif["notes"]
-                        )
+                        es_fuera_de_plazo = bool(notif.get("notes") and "[ENTREGADO FUERA DE PLAZO]" in notif["notes"])
+                        
                         if es_fuera_de_plazo:
-                            st.error(
-                                f"⚠️ **ENTREGA FUERA DE PLAZO**\n\n"
-                                f"**{notif['emp']}** envió su reporte a destiempo.\n\n"
-                                f"📌 **Proyecto:** {notif['project']}\n"
-                                f"📝 **Tarea:** {notif['descr']}"
-                            )
+                            texto_btn = f"⚠️ FUERA DE PLAZO\n{notif['emp']}\n📌 {notif['project']}"
+                        elif notif['state'] == 'Completada':
+                            texto_btn = f"✅ COMPLETADA\n{notif['emp']}\n📌 {notif['project']}"
                         else:
-                            mensaje = f"✅ **{notif['emp']}** solicita revisión o completó a tiempo:\n\n📌 {notif['project']} - {notif['descr']}"
-                            st.info(mensaje)
+                            texto_btn = f"⏳ REVISAR\n{notif['emp']}\n📌 {notif['project']}"
+                        
+                        if st.button(texto_btn, key=f"notif_admin_{notif['id']}", use_container_width=True):
+                            st.rerun()
             else:
                 st.write("No hay notificaciones nuevas.")
 

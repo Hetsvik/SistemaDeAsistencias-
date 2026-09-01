@@ -7,8 +7,6 @@ from services.google_drive_service import GoogleDriveService
 
 
 drive = GoogleDriveService()
-
-
 # Configuración de página
 st.set_page_config(
     page_title="Control de Asistencia Corporativo",

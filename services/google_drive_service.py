@@ -49,12 +49,15 @@ class GoogleDriveService:
         )
 
         # =====================================================
-        # CARPETA PRINCIPAL
+        # CARPETA PRINCIPAL Y EMAIL PROPIETARIO
         # =====================================================
 
         self.root_folder_id = st.secrets["storage"][
             "google_drive_folder_id"
         ]
+
+        # Email de tu cuenta personal de Gmail para transferirle la propiedad de los archivos
+        self.owner_email = st.secrets["storage"].get("owner_email")
 
         # Guarda el último error de la API para poder mostrarlo en la UI
         self._last_error = None
@@ -244,15 +247,27 @@ class GoogleDriveService:
                 supportsAllDrives=True
             ).execute()
 
+            # Transferir la propiedad a tu cuenta de Gmail personal para evitar el fallo de cuota
+            if self.owner_email and uploaded_file and "id" in uploaded_file:
+                try:
+                    user_permission = {
+                        "type": "user",
+                        "role": "owner",
+                        "emailAddress": self.owner_email
+                    }
+                    self.service.permissions().create(
+                        fileId=uploaded_file["id"],
+                        body=user_permission,
+                        transferOwnership=True,
+                        supportsAllDrives=True
+                    ).execute()
+                except Exception as perm_err:
+                    print(f"Advertencia al transferir propiedad: {perm_err}")
+
             return uploaded_file
 
         except HttpError as e:
 
-            # Mensaje explícito: la causa más común de fallo aquí es que
-            # la carpeta destino es una carpeta normal de "Mi unidad" y no
-            # una Unidad compartida. Las cuentas de servicio tienen 0 bytes
-            # de cuota propia, así que no pueden "poseer" contenido subido
-            # fuera de una Unidad compartida, aunque sí puedan crear carpetas.
             print(f"Error subiendo archivo a la carpeta '{target_folder}': {e}")
 
             self._last_error = str(e)

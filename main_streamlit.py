@@ -5,6 +5,16 @@ import streamlit as st
 from zoneinfo import ZoneInfo
 from services.google_drive_service import GoogleDriveService
 
+# -----------------------------------------------------------------------------
+# INICIALIZACIÓN DE GOOGLE DRIVE (Ámbito Global)
+# -----------------------------------------------------------------------------
+
+drive_service = None
+try:
+    drive_service = GoogleDriveService()
+except Exception as e:
+    # Registra o muestra el error si las credenciales fallan
+    print(f"Error al inicializar GoogleDriveService: {e}")
 drive = GoogleDriveService()
 
 # Configuración de página

@@ -31,12 +31,12 @@ class GoogleDriveService:
         # Eliminar configuraciones que NO son credenciales
         google_config.pop("folder_id", None)
 
-        # En __init__ de tu clase GoogleDriveService:
+        # Modifica la sección de credenciales en tu __init__:
         self.credentials = (
             service_account.Credentials.from_service_account_info(
                 google_config,
                 scopes=self.SCOPES
-            ).with_subject("terrapapus333@gmail.com") 
+            ).with_subject(st.secrets["storage"]["owner_email"])
         )
 
         # =====================================================

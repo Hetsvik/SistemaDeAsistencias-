@@ -965,23 +965,33 @@ def render_admin_view():
         st.divider()
         st.subheader("Lista de Proyectos")
             
+        # 1. Realizar la consulta a la base de datos y guardarla en una variable
+        proyectos_lista = query("SELECT ID_Proyecto AS ID, Nombre_Proyecto AS Proyecto, Area_Departamento AS Área FROM Proyectos ORDER BY ID_Proyecto DESC")
+        
         cols_header = st.columns([1, 3, 3, 1])
         cols_header[0].write("**ID**")
         cols_header[1].write("**Proyecto**")
         cols_header[2].write("**Área**")
         cols_header[3].write("")
         st.divider()
-        if query:
-            for p in query:
+        
+        # 2. Iterar sobre la variable proyectos_lista, no sobre la función query
+        if proyectos_lista:
+            for p in proyectos_lista:
                 c1, c2, c3, c4 = st.columns([1, 3, 3, 1])
                 c1.write(p['ID'])
                 c2.write(p['Proyecto'])
                 c3.write(p['Área'])
+                
                 # Botón para eliminar (usamos el ID del proyecto como llave única)
-                if c4.button("🗑️", key=f"btn_del_{p['ID']}"):
-                    execute("DELETE FROM Proyectos WHERE ID_Proyecto = %s", (p['ID'],))
-                    st.success(f"Proyecto {p['ID']} eliminado.")
-                    st.rerun() # Refrescamos para que desaparezca de la lista
+                if c4.button("🗑️", key=f"btn_del_proj_{p['ID']}"):
+                    try:
+                        execute("DELETE FROM Proyectos WHERE ID_Proyecto = %s", (p['ID'],))
+                        st.success(f"Proyecto eliminado exitosamente.")
+                        st.rerun()
+                    except Exception as e:
+                        # 3. Manejo del error si el proyecto ya tiene tareas asignadas
+                        st.error("❌ No se puede eliminar este proyecto porque ya tiene tareas asignadas en el sistema.")
         else:
             st.info("No hay proyectos registrados actualmente.")
 

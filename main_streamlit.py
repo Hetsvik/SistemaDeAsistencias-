@@ -685,24 +685,49 @@ def render_admin_view():
 
         if tasks_monitoreo:
             for task in tasks_monitoreo:
-                icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else '📌')
+                icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else ('⏳' if task['state'] in ('Enviar a Revisión', 'En Revisión') else '📌'))
                 
                 with st.expander(f"{icon} {task['project']} | {task['emp']} — [{task['state']}]"):
                     st.write(f"**Descripción:** {task['description']}")
-                    st.write(f"**Reporte/Archivos adjuntos:** {task['notes'] or 'Sin reportes enviados'}")
+                    st.write(f"**Reporte/Entregable del empleado:** {task['notes'] or 'Sin reportes enviados'}")
 
-                    col_btn1, col_btn2, col_btn3 = st.columns(3)
-                    with col_btn1:
-                        if st.button("⏸️ Pausar", key=f"pause_{task['id']}", use_container_width=True):
-                            execute("UPDATE Tareas SET Estado_Tarea='Bloqueada' WHERE ID_Tarea=%s", (task["id"],))
-                            st.rerun()
-                    with col_btn2:
-                        if st.button("▶️ Reanudar", key=f"resume_{task['id']}", use_container_width=True):
-                            execute("UPDATE Tareas SET Estado_Tarea='En Progreso' WHERE ID_Tarea=%s", (task["id"],))
-                            st.rerun()
-                    with col_btn3:
-                        if st.button("✅ Aprobar", key=f"approve_{task['id']}", use_container_width=True):
-                            execute("UPDATE Tareas SET Estado_Tarea='Completada' WHERE ID_Tarea=%s", (task["id"],))
+                    # ESTRUCTURA DE 3 COLUMNAS: [Acción 1] [Acción 2] [Eliminar]
+                    col_btn1, col_btn2, col_del = st.columns([2, 2, 1])
+                    
+                    if task['state'] in ('Enviar a Revisión', 'En Revisión'):
+                        with col_btn1:
+                            if st.button("✅ Aprobar Tarea", key=f"approve_{task['id']}", type="primary", use_container_width=True):
+                                execute("UPDATE Tareas SET Estado_Tarea='Completada' WHERE ID_Tarea=%s", (task["id"],))
+                                st.success("Tarea aprobada y marcada como Completada.")
+                                st.rerun()
+                        with col_btn2:
+                            if st.button("🔄 Solicitar Cambios", key=f"reject_{task['id']}", use_container_width=True):
+                                execute("UPDATE Tareas SET Estado_Tarea='En Progreso' WHERE ID_Tarea=%s", (task["id"],))
+                                st.warning("Tarea devuelta al empleado para correcciones.")
+                                st.rerun()
+
+                    elif task['state'] in ('En Progreso', 'Asignada'):
+                        with col_btn1:
+                            if st.button("⏸️ Pausar Tarea", key=f"pause_{task['id']}", use_container_width=True):
+                                execute("UPDATE Tareas SET Estado_Tarea='Bloqueada' WHERE ID_Tarea=%s", (task["id"],))
+                                st.rerun()
+
+                    elif task['state'] == 'Bloqueada':
+                        with col_btn1:
+                            if st.button("▶️ Reanudar Tarea", key=f"resume_{task['id']}", use_container_width=True):
+                                execute("UPDATE Tareas SET Estado_Tarea='En Progreso' WHERE ID_Tarea=%s", (task["id"],))
+                                st.rerun()
+
+                    elif task['state'] == 'Completada':
+                        with col_btn1:
+                            st.success("✅ Tarea Aprobada y Cerrada.")
+
+                    # NUEVO: BOTÓN ELIMINAR (Se muestra siempre, alineado a la derecha)
+                    with col_del:
+                        if st.button("🗑️ Eliminar", key=f"delete_{task['id']}", use_container_width=True):
+                            # Por seguridad, borramos posibles actividades asociadas antes de la tarea general
+                            execute("DELETE FROM Actividades WHERE ID_Tarea=%s", (task["id"],))
+                            execute("DELETE FROM Tareas WHERE ID_Tarea=%s", (task["id"],))
                             st.rerun()
 
                     st.divider()
@@ -710,6 +735,7 @@ def render_admin_view():
                     
                     render_chat_fragment(task["id"], "Administrador")
 
+    
                     # CAMPO ADJUNTO + MENSAJE (ADMIN)
                     uploaded_file_admin = st.file_uploader("📎 Adjuntar Archivo", key=f"file_admin_{task['id']}")
                     col_msg1, col_msg2 = st.columns([3, 1])

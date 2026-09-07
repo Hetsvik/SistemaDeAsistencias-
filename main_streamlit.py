@@ -938,8 +938,26 @@ def render_admin_view():
 
         st.divider()
         st.subheader("Lista de Proyectos")
-        projs = query("SELECT ID_Proyecto AS ID, Nombre_Proyecto AS Proyecto, Area_Departamento AS Área FROM Proyectos ORDER BY Nombre_Proyecto")
-        st.dataframe(projs, use_container_width=True)
+            
+        cols_header = st.columns([1, 3, 3, 1])
+        cols_header[0].write("**ID**")
+        cols_header[1].write("**Proyecto**")
+        cols_header[2].write("**Área**")
+        cols_header[3].write("")
+        st.divider()
+        if query:
+            for p in query:
+                c1, c2, c3, c4 = st.columns([1, 3, 3, 1])
+                c1.write(p['ID'])
+                c2.write(p['Proyecto'])
+                c3.write(p['Área'])
+                # Botón para eliminar (usamos el ID del proyecto como llave única)
+                if c4.button("🗑️", key=f"btn_del_{p['ID']}"):
+                    execute("DELETE FROM Proyectos WHERE ID_Proyecto = %s", (p['ID'],))
+                    st.success(f"Proyecto {p['ID']} eliminado.")
+                    st.rerun() # Refrescamos para que desaparezca de la lista
+        else:
+            st.info("No hay proyectos registrados actualmente.")
 
     # MI PERFIL (ADMINISTRADOR)
     with tab5:

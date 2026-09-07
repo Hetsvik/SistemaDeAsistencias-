@@ -415,14 +415,14 @@ def render_employee_view():
         
         if attendance and attendance.get("entry"):
             hora_entrada = attendance["entry"].time()
-            limite_tolerancia = dtime(9, 20, 0)
+            limite_tolerancia = dtime(9, 40, 0)  # Límite ajustado a las 09:40 AM
             
             if hora_entrada <= limite_tolerancia:
-                st.success(f"🟢 **A tiempo:** Registraste tu entrada dentro de la tolerancia.")
+                st.success("🟢 **A tiempo:** Registraste tu entrada dentro de la tolerancia.")
             else:
-                st.error(f"🔴 **Tardanza:** Registraste tu entrada fuera del límite de las 09:20.")
+                st.error("🔴 **Tardanza:** Registraste tu entrada fuera del límite de las 09:40.")
         else:
-            st.warning(f"⚪ **Pendiente:** Aún no has registrado tu entrada de hoy.")
+            st.warning("⚪ **Pendiente:** Aún no has registrado tu entrada de hoy.")
 
         col_a, col_b = st.columns(2)
         with col_a:
@@ -638,7 +638,7 @@ def render_admin_view():
         )
 
         from datetime import time as dtime
-        limite_tolerancia = dtime(9, 20, 0)
+        limite_tolerancia = dtime(9, 40, 0)
         
         tabla_final = []
         if attendance_raw:

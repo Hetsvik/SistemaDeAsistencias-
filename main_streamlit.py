@@ -863,11 +863,11 @@ def render_admin_view():
                 col_e1, col_e2 = st.columns(2)
                 with col_e1:
                     new_name = st.text_input("Nombre Completo", value=current_w["Nombre_Completo"])
-                    new_email = st.text_input("Correo Electrónico", value=current_w["Correo"] if current_w["Correo"] else "")
+                    new_email = st.text_input("Correo Electrónico", value=current_w["Correo"] if current_w["Correo"] else "", key=f"email_{current_w['emp_id']}")
                     new_code = st.text_input("Código de Trabajador", value=current_w["Codigo_Trabajador"])
                 with col_e2:
                     new_position = st.text_input("Cargo / Puesto", value=current_w["Rol_Cargo"])
-                    new_phone = st.text_input("Teléfono", value=current_w["Telefono"] if current_w["Telefono"] else "")
+                    new_phone = st.text_input("Teléfono", value=current_w["Telefono"] if current_w["Telefono"] else "", key=f"phone_{current_w['emp_id']}")
                     new_status = st.selectbox("Estado en la Empresa", ["Activo", "Inactivo"], index=0 if current_w["Estado"] == "Activo" else 1)
 
                 new_pin = st.text_input("Nueva Contraseña (Déjalo en blanco si no deseas cambiarla)", type="password")

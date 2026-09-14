@@ -830,7 +830,7 @@ def render_admin_view():
                         st.success("Tarea asignada exitosamente.")
                         st.rerun()
 
-    # GESTIÓN DE PERSONAL
+   # GESTIÓN DE PERSONAL
     with tab3:
         st.subheader("➕ Registrar Nuevo Trabajador")
         with st.form("form_worker"):
@@ -869,7 +869,7 @@ def render_admin_view():
 
         st.divider()
 
-        # NUEVO MÓDULO: MODIFICAR / ACTUALIZAR EMPLEADO
+        # MÓDULO: MODIFICAR / ACTUALIZAR EMPLEADO
         st.subheader("✏️ Editar Datos del Personal")
         
         edit_workers = query("""
@@ -930,7 +930,44 @@ def render_admin_view():
 
         st.divider()
 
-        # LISTADO ACTUALIZADO (Para mostrar las nuevas columnas)
+        # NUEVO MÓDULO: DAR DE BAJA / RETIRAR EMPLEADO
+        st.subheader("🗑️ Retirar Empleado del Sistema")
+        
+        if edit_workers: # Reutilizamos la consulta previa por eficiencia
+            del_options = {f"{w['Codigo_Trabajador']} - {w['Nombre_Completo']}": w['emp_id'] for w in edit_workers}
+            
+            empleado_seleccionado = st.selectbox(
+                "Selecciona el empleado que deseas eliminar:",
+                options=list(del_options.keys()),
+                index=None,
+                placeholder="Elige un empleado..."
+            )
+            
+            if empleado_seleccionado:
+                id_a_eliminar = del_options[empleado_seleccionado]
+                
+                st.warning(f"⚠️ **Atención:** Estás a punto de eliminar a **{empleado_seleccionado}**. Esta acción es irreversible y, por las reglas de integridad de la base de datos, borrará automáticamente su historial de asistencias y tareas asociadas.")
+                
+                confirmacion = st.checkbox("Comprendo las consecuencias, habilitar eliminación.")
+                
+                if confirmacion:
+                    if st.button("🗑️ Eliminar Empleado Definitivamente", type="primary"):
+                        try:
+                            # Por seguridad y soporte de claves foráneas, borramos primero en Trabajadores y luego en Empleados
+                            execute("DELETE FROM Trabajadores WHERE ID_Empleado = %s", (id_a_eliminar,))
+                            execute("DELETE FROM Empleados WHERE ID_Empleado = %s", (id_a_eliminar,))
+                            
+                            st.success(f"✅ El empleado ha sido retirado exitosamente de Clever Cloud.")
+                            st.rerun() 
+                            
+                        except Exception as e:
+                            st.error(f"❌ Error al eliminar. Verifica si existen registros huérfanos que impiden el borrado: {e}")
+        else:
+            st.info("No hay empleados registrados actualmente en el sistema.")
+
+        st.divider()
+
+        # LISTADO ACTUALIZADO
         st.subheader("📋 Listado de Personal")
         people = query(
             """

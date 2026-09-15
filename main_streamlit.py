@@ -482,9 +482,7 @@ def render_employee_view():
     # TAREAS Y FEEDBACK
     elif st.session_state.emp_nav == "📋 Mis Tareas del Día":
         st.subheader("Tareas de Hoy")
-        from datetime import datetime
-        import streamlit.components.v1 as components # <-- MÉTODO OFICIAL DE STREAMLIT PARA JS
-        
+        from datetime import datetime # Aseguramos la importación
         curr_dt = now_local().replace(tzinfo=None)
 
         tasks = query(
@@ -501,6 +499,7 @@ def render_employee_view():
         )
 
         if tasks:
+            # LÓGICA DEL MENSAJE EMERGENTE TOP-LEFT
             tareas_pendientes = [t for t in tasks if t['state'] not in ('Completada', 'Bloqueada') and t['end_time']]
             
             if tareas_pendientes:
@@ -517,108 +516,38 @@ def render_employee_view():
                 )
                 
                 tiempo_restante = limit_dt - curr_dt
-                segundos_restantes = tiempo_restante.total_seconds()
                 
-                if segundos_restantes > 0:
-                    nombre_proyecto = str(tarea_proxima['project']).replace("'", "\\'").replace('"', '\\"')
+                if tiempo_restante.total_seconds() > 0:
+                    horas, rem = divmod(tiempo_restante.seconds, 3600)
+                    minutos, _ = divmod(rem, 60)
+                    str_tiempo = f"{tiempo_restante.days} días, {horas}h {minutos}m" if tiempo_restante.days > 0 else f"{horas}h {minutos}m"
                     
-                    # Script inyectado con components.html
-                    js_code = f"""
-                    <script>
-                    (function() {{
-                        // Apuntamos al documento principal de Streamlit
-                        const doc = window.parent.document;
-                        
-                        if (window.parent.tareaTimer) clearInterval(window.parent.tareaTimer);
+                    # Inyección de HTML/CSS para el popup superior izquierdo
+                    st.markdown(
+                        f"""
+                        <div style="
+                            position: fixed;
+                            top: 60px;
+                            left: 20px;
+                            background-color: #ff4b4b;
+                            color: white;
+                            padding: 12px 20px;
+                            border-radius: 8px;
+                            z-index: 999999;
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                            font-family: sans-serif;
+                            font-size: 14px;
+                            font-weight: bold;
+                            border: 1px solid #e03a3a;
+                        ">
+                            ⏳ Te queda {str_tiempo} para enviar el trabajo ({tarea_proxima['project']})
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
 
-                        let popup = doc.getElementById('alerta-tiempo-popup');
-                        let textoSpan;
-                        let audioElem;
 
-                        // Si no existe, creamos el HTML
-                        if (!popup) {{
-                            popup = doc.createElement('div');
-                            popup.id = 'alerta-tiempo-popup';
-                            popup.style.cssText = 'display: none; position: fixed; top: 60px; left: 20px; background-color: #ff4b4b; color: white; padding: 15px 25px; border-radius: 8px; z-index: 999999; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-family: sans-serif; font-size: 15px; font-weight: bold; border: 1px solid #e03a3a;';
-                            
-                            textoSpan = doc.createElement('span');
-                            textoSpan.id = 'alerta-tiempo-texto';
-                            popup.appendChild(textoSpan);
-
-                            let btnCerrar = doc.createElement('span');
-                            btnCerrar.innerHTML = '✖';
-                            btnCerrar.style.cssText = 'margin-left: 20px; cursor: pointer; float: right; color: #ffe6e6;';
-                            btnCerrar.onclick = function() {{ popup.style.display = 'none'; }};
-                            popup.appendChild(btnCerrar);
-
-                            doc.body.appendChild(popup);
-                            
-                            // Creamos el reproductor de sonido oculto
-                            audioElem = doc.createElement('audio');
-                            audioElem.id = 'alerta-tiempo-audio';
-                            audioElem.src = 'https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3';
-                            doc.body.appendChild(audioElem);
-                        }} else {{
-                            textoSpan = doc.getElementById('alerta-tiempo-texto');
-                            audioElem = doc.getElementById('alerta-tiempo-audio');
-                        }}
-
-                        let timeRemaining = {segundos_restantes};
-                        let endTime = Date.now() + (timeRemaining * 1000);
-                        
-                        // ======= PRUEBA VISUAL DE CARGA =======
-                        // Esto hará que el popup aparezca 5 segundos cuando entras, para que sepas que funciona
-                        textoSpan.innerHTML = '⏳ Sistema de alertas activado ({nombre_proyecto})';
-                        popup.style.display = 'block';
-                        setTimeout(() => {{ popup.style.display = 'none'; }}, 5000);
-                        // ======================================
-
-                        let avisos = {{
-                            60: timeRemaining <= 3600,
-                            30: timeRemaining <= 1800,
-                            10: timeRemaining <= 600,
-                            5:  timeRemaining <= 300,
-                            1:  timeRemaining <= 60
-                        }};
-
-                        // Reloj en segundo plano
-                        window.parent.tareaTimer = setInterval(function() {{
-                            let segsActuales = (endTime - Date.now()) / 1000;
-                            
-                            if (segsActuales <= 0) {{
-                                clearInterval(window.parent.tareaTimer);
-                                return;
-                            }}
-
-                            let chequearHito = function(minutos, limiteSegundos) {{
-                                if (segsActuales <= limiteSegundos && !avisos[minutos]) {{
-                                    avisos[minutos] = true;
-                                    let strTiempo = minutos === 60 ? '1 hora' : minutos + ' minutos';
-                                    textoSpan.innerHTML = '⏳ Te queda ' + strTiempo + ' para enviar el trabajo ({nombre_proyecto})';
-                                    popup.style.display = 'block';
-                                    
-                                    // Reproducir sonido suave
-                                    if(audioElem) {{
-                                        audioElem.play().catch(e => console.log("El navegador bloqueó el audio automático"));
-                                    }}
-                                }}
-                            }};
-
-                            chequearHito(60, 3600);
-                            chequearHito(30, 1800);
-                            chequearHito(10, 600);
-                            chequearHito(5, 300);
-                            chequearHito(1, 60);
-
-                        }}, 1000);
-                    }})();
-                    </script>
-                    """
-                    
-                    # Inyectamos el JS silenciosamente usando la función oficial de Streamlit
-                    components.html(js_code, height=0, width=0)
-
-            # RENDERIZADO DE TAREAS (Continúa con tus expansores de tareas normales)
+            # RENDERIZADO DE TAREAS
             for task in tasks:
                 icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else ('⏳' if task['state'] in ('Enviar a Revisión', 'En Revisión') else '📌'))
                 
@@ -635,13 +564,10 @@ def render_employee_view():
 
                     # CONTROL DE ESTADO BIDIRECCIONAL
                     if task['state'] == 'Completada':
-                        st.success("✅ **Tarea Aprobada y Cerrada.** Esta tarea ya fue validada por la administración.")
-                    elif task['state'] == 'Bloqueada':
-                        st.error("⏸️ **Tarea Pausada.** La administración ha bloqueado temporalmente esta tarea. Revisa el chat para más instrucciones.")
+                        st.success("✅ **Tarea Aprobada y Cerrada.** Esta tarea ya fue validada por la administración y no admite más cambios.")
                     else:
                         st.markdown("#### Actualizar Estado")
                         
-                        # El empleado solo tiene 2 opciones lógicas ahora
                         estados_posibles = ["En Progreso", "Enviar a Revisión"]
                         idx_actual = estados_posibles.index(task['state']) if task['state'] in estados_posibles else 0
                         
@@ -656,7 +582,7 @@ def render_employee_view():
                             )
                         with col_act2:
                             update_btn = st.button("Actualizar", key=f"btn_{task['id']}", type="primary", use_container_width=True)
-                        
+
                         if update_btn:
                             final_notes = task["notes"] or ""
 
@@ -1187,11 +1113,10 @@ def render_admin_view():
                         st.error("❌ La contraseña actual es incorrecta.")
 
 
-    # REPORTES ANALÍTICOS Y KARDEX DE EMPLEADO
+   # REPORTES ANALÍTICOS Y KARDEX DE EMPLEADO
     with tab6:
         st.subheader("📈 Reporte Analítico de Rendimiento")
         
-        # 1. Selector de Empleados
         workers_report = query("""
             SELECT W.ID_Trabajador AS id, E.Nombre_Completo AS name, W.Codigo_Trabajador AS code
             FROM Trabajadores W
@@ -1210,16 +1135,15 @@ def render_admin_view():
             
             worker_id_rep = w_dict_rep[selected_worker_rep]
             
-            # 2. Lógica Dinámica de Fechas
             hoy = today_local()
             if rango_tiempo == "Esta Semana":
-                inicio_fecha = hoy - timedelta(days=hoy.weekday()) # Lunes
-                fin_fecha = inicio_fecha + timedelta(days=6)       # Domingo
+                inicio_fecha = hoy - timedelta(days=hoy.weekday())
+                fin_fecha = inicio_fecha + timedelta(days=6)
             elif rango_tiempo == "Este Mes":
                 inicio_fecha = hoy.replace(day=1)
                 ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
                 fin_fecha = hoy.replace(day=ultimo_dia)
-            else: # Mes Anterior
+            else:
                 primer_dia_mes_actual = hoy.replace(day=1)
                 fin_fecha = primer_dia_mes_actual - timedelta(days=1)
                 inicio_fecha = fin_fecha.replace(day=1)
@@ -1227,9 +1151,7 @@ def render_admin_view():
             st.caption(f"Visualizando datos desde **{inicio_fecha.strftime('%d/%m/%Y')}** hasta **{fin_fecha.strftime('%d/%m/%Y')}**")
             
             if st.button("📊 Generar Reporte", type="primary"):
-                
-                # --- 3. EL PODER DEL MOTOR SQL (Consultas Optimizadas) ---
-                # A. KPIs de Asistencia en 1 sola consulta
+                # 1. Ejecutar las consultas SQL optimizadas
                 kpi_asistencia = query("""
                     SELECT 
                         COUNT(*) AS total_dias,
@@ -1239,7 +1161,6 @@ def render_admin_view():
                     WHERE ID_Trabajador = %s AND Fecha_Calculada BETWEEN %s AND %s
                 """, (worker_id_rep, inicio_fecha, fin_fecha))
                 
-                # B. KPIs de Tareas en 1 sola consulta
                 kpi_tareas = query("""
                     SELECT 
                         COUNT(*) AS total_tareas,
@@ -1248,29 +1169,35 @@ def render_admin_view():
                     WHERE ID_Trabajador = %s AND Fecha BETWEEN %s AND %s
                 """, (worker_id_rep, inicio_fecha, fin_fecha))
 
-                # Extraer valores y asegurar que no sean NULL (conversión a entero seguro)
-                a_tiempo = int(kpi_asistencia[0]['a_tiempo'] or 0) if kpi_asistencia else 0
-                tardanzas = int(kpi_asistencia[0]['tardanzas'] or 0) if kpi_asistencia else 0
-                
-                tot_tareas = int(kpi_tareas[0]['total_tareas'] or 0) if kpi_tareas else 0
-                completadas = int(kpi_tareas[0]['completadas'] or 0) if kpi_tareas else 0
-                
-                eficiencia = round((completadas / tot_tareas * 100), 1) if tot_tareas > 0 else 0.0
+                # 2. Guardar los resultados en session_state para que no se borren
+                st.session_state.reporte_actual = {
+                    "id_trabajador": worker_id_rep,
+                    "nombre": selected_worker_rep.split('-')[1].strip(),
+                    "rango": rango_tiempo,
+                    "inicio": inicio_fecha,
+                    "fin": fin_fecha,
+                    "tot_asistencias": int(kpi_asistencia[0]['total_dias'] or 0) if kpi_asistencia else 0,
+                    "a_tiempo": int(kpi_asistencia[0]['a_tiempo'] or 0) if kpi_asistencia else 0,
+                    "tardanzas": int(kpi_asistencia[0]['tardanzas'] or 0) if kpi_asistencia else 0,
+                    "tot_tareas": int(kpi_tareas[0]['total_tareas'] or 0) if kpi_tareas else 0,
+                    "completadas": int(kpi_tareas[0]['completadas'] or 0) if kpi_tareas else 0,
+                }
+                st.session_state.reporte_actual["eficiencia"] = round((st.session_state.reporte_actual["completadas"] / st.session_state.reporte_actual["tot_tareas"] * 100), 1) if st.session_state.reporte_actual["tot_tareas"] > 0 else 0.0
 
-                # --- 4. RENDERIZADO DEL DASHBOARD (UI/UX PROFESIONAL) ---
+            # 3. RENDERIZADO DEL REPORTE SI EXISTE EN MEMORIA
+            if "reporte_actual" in st.session_state and st.session_state.reporte_actual["id_trabajador"] == worker_id_rep:
+                rep = st.session_state.reporte_actual
+                
                 st.divider()
-                st.markdown(f"### 📈 Resultados de {selected_worker_rep.split('-')[1].strip()}")
+                st.markdown(f"### 📈 Resultados de {rep['nombre']}")
                 
-                # Fila 1: Tarjetas de KPIs visuales
                 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-                kpi1.metric(label="Llegadas a Tiempo", value=f"🟢 {a_tiempo}")
-                kpi2.metric(label="Tardanzas", value=f"🔴 {tardanzas}")
-                kpi3.metric(label="Tareas Completadas", value=f"✅ {completadas} / {tot_tareas}")
-                kpi4.metric(label="Eficiencia", value=f"⚡ {eficiencia}%")
+                kpi1.metric(label="Llegadas a Tiempo", value=f"🟢 {rep['a_tiempo']}")
+                kpi2.metric(label="Tardanzas", value=f"🔴 {rep['tardanzas']}")
+                kpi3.metric(label="Tareas Completadas", value=f"✅ {rep['completadas']} / {rep['tot_tareas']}")
+                kpi4.metric(label="Eficiencia", value=f"⚡ {rep['eficiencia']}%")
                 
-                st.write("") # Espaciador
-                
-                # Fila 2: Gráfico y Detalles
+                st.write("")
                 col_graf, col_det = st.columns([1, 1])
                 
                 with col_graf:
@@ -1280,42 +1207,66 @@ def render_admin_view():
                         FROM Tareas 
                         WHERE ID_Trabajador = %s AND Fecha BETWEEN %s AND %s 
                         GROUP BY Estado_Tarea
-                    """, (worker_id_rep, inicio_fecha, fin_fecha))
+                    """, (worker_id_rep, rep['inicio'], rep['fin']))
                     
                     if graf_tareas:
+                        import altair as alt
+                        import pandas as pd
                         df_graf = pd.DataFrame(graf_tareas)
-                        
-                        # UX FIX: Usamos Altair para forzar el texto del eje X en horizontal (labelAngle=0)
                         chart = alt.Chart(df_graf).mark_bar(color="#c5a880").encode(
                             x=alt.X('Estado_Tarea', title="", axis=alt.Axis(labelAngle=0)),
                             y=alt.Y('Cantidad', title="Cantidad de Tareas"),
                             tooltip=['Estado_Tarea', 'Cantidad']
                         ).properties(height=300)
-                        
                         st.altair_chart(chart, use_container_width=True)
                     else:
                         st.info("No hay datos suficientes para graficar.")
                         
                 with col_det:
-                    # UX FIX: Título dinámico que cambia según el filtro elegido
-                    st.markdown(f"#### Registro de Tareas ({rango_tiempo})")
-                    
-                    # SQL FIX: Hacemos un JOIN con la tabla Proyectos y quitamos el LIMIT 5
+                    st.markdown(f"#### Registro de Tareas ({rep['rango']})")
                     tareas_periodo = query("""
-                        SELECT P.Nombre_Proyecto AS Proyecto, 
-                               T.Descripcion_Tarea AS Tarea, 
-                               T.Estado_Tarea AS Estado
+                        SELECT P.Nombre_Proyecto AS Proyecto, T.Descripcion_Tarea AS Tarea, T.Estado_Tarea AS Estado
                         FROM Tareas T
                         JOIN Proyectos P ON T.ID_Proyecto = P.ID_Proyecto
                         WHERE T.ID_Trabajador = %s AND T.Fecha BETWEEN %s AND %s
                         ORDER BY T.Fecha DESC
-                    """, (worker_id_rep, inicio_fecha, fin_fecha))
+                    """, (worker_id_rep, rep['inicio'], rep['fin']))
                     
                     if tareas_periodo:
-                        df_tareas = pd.DataFrame(tareas_periodo)
-                        st.dataframe(df_tareas, use_container_width=True, hide_index=True)
+                        st.dataframe(pd.DataFrame(tareas_periodo), use_container_width=True, hide_index=True)
                     else:
                         st.info("Sin tareas asignadas en este periodo.")
+
+                # 4. BOTÓN PARA GUARDAR LA FOTOGRAFÍA OFICIAL
+                st.divider()
+                st.info("💡 Si este reporte corresponde a un cierre de mes o evaluación oficial, puedes guardarlo permanentemente en el sistema.")
+                if st.button("💾 Guardar Reporte Oficial en Base de Datos"):
+                    try:
+                        execute("""
+                            INSERT INTO Evaluaciones_Rendimiento 
+                            (ID_Trabajador, ID_Administrador, Periodo_Texto, Fecha_Inicio, Fecha_Fin, Total_Asistencias, Llegadas_Tiempo, Tardanzas, Total_Tareas, Tareas_Completadas, Eficiencia_Porcentaje)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (
+                            rep['id_trabajador'],
+                            st.session_state.user["id"],
+                            rep['rango'],
+                            rep['inicio'].strftime('%Y-%m-%d'),
+                            rep['fin'].strftime('%Y-%m-%d'),
+                            rep['tot_asistencias'],
+                            rep['a_tiempo'],
+                            rep['tardanzas'],
+                            rep['tot_tareas'],
+                            rep['completadas'],
+                            rep['eficiencia']
+                        ))
+                        st.success("✅ Reporte oficial guardado correctamente.")
+                        # Limpiamos la sesión tras guardar para reiniciar el flujo
+                        del st.session_state.reporte_actual
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al guardar el reporte: {e}")
+        else:
+            st.info("No hay empleados activos en el sistema.")
 # -----------------------------------------------------------------------------
 # CONTROL DE FLUJO PRINCIPAL Y NOTIFICACIONES
 # -----------------------------------------------------------------------------

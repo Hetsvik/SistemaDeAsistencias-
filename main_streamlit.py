@@ -1,3 +1,4 @@
+import altair as alt
 import pandas as pd
 from datetime import timedelta
 import calendar
@@ -1152,7 +1153,6 @@ def render_admin_view():
                 
                 with col_graf:
                     st.markdown("#### Distribución de Tareas")
-                    # Consulta SQL con GROUP BY para alimentar el gráfico
                     graf_tareas = query("""
                         SELECT Estado_Tarea, COUNT(*) AS Cantidad 
                         FROM Tareas 
@@ -1161,29 +1161,39 @@ def render_admin_view():
                     """, (worker_id_rep, inicio_fecha, fin_fecha))
                     
                     if graf_tareas:
-                        # Convertimos a Pandas DataFrame para integrarlo con el gráfico nativo de Streamlit
                         df_graf = pd.DataFrame(graf_tareas)
-                        df_graf.set_index('Estado_Tarea', inplace=True)
-                        st.bar_chart(df_graf, color="#c5a880") # Usa el dorado arquitectónico
+                        
+                        # UX FIX: Usamos Altair para forzar el texto del eje X en horizontal (labelAngle=0)
+                        chart = alt.Chart(df_graf).mark_bar(color="#c5a880").encode(
+                            x=alt.X('Estado_Tarea', title="", axis=alt.Axis(labelAngle=0)),
+                            y=alt.Y('Cantidad', title="Cantidad de Tareas"),
+                            tooltip=['Estado_Tarea', 'Cantidad']
+                        ).properties(height=300)
+                        
+                        st.altair_chart(chart, use_container_width=True)
                     else:
                         st.info("No hay datos suficientes para graficar.")
                         
                 with col_det:
-                    st.markdown("#### Últimas 5 Tareas Asignadas")
-                    ultimas_tareas = query("""
-                        SELECT Descripcion_Tarea AS Tarea, Estado_Tarea AS Estado
-                        FROM Tareas 
-                        WHERE ID_Trabajador = %s AND Fecha BETWEEN %s AND %s
-                        ORDER BY Fecha DESC LIMIT 5
+                    # UX FIX: Título dinámico que cambia según el filtro elegido
+                    st.markdown(f"#### Registro de Tareas ({rango_tiempo})")
+                    
+                    # SQL FIX: Hacemos un JOIN con la tabla Proyectos y quitamos el LIMIT 5
+                    tareas_periodo = query("""
+                        SELECT P.Nombre_Proyecto AS Proyecto, 
+                               T.Descripcion_Tarea AS Tarea, 
+                               T.Estado_Tarea AS Estado
+                        FROM Tareas T
+                        JOIN Proyectos P ON T.ID_Proyecto = P.ID_Proyecto
+                        WHERE T.ID_Trabajador = %s AND T.Fecha BETWEEN %s AND %s
+                        ORDER BY T.Fecha DESC
                     """, (worker_id_rep, inicio_fecha, fin_fecha))
                     
-                    if ultimas_tareas:
-                        df_ultimas = pd.DataFrame(ultimas_tareas)
-                        st.dataframe(df_ultimas, use_container_width=True, hide_index=True)
+                    if tareas_periodo:
+                        df_tareas = pd.DataFrame(tareas_periodo)
+                        st.dataframe(df_tareas, use_container_width=True, hide_index=True)
                     else:
-                        st.info("Sin tareas recientes en este periodo.")
-        else:
-            st.info("No hay empleados activos en el sistema.")
+                        st.info("Sin tareas asignadas en este periodo.")
 # -----------------------------------------------------------------------------
 # CONTROL DE FLUJO PRINCIPAL Y NOTIFICACIONES
 # -----------------------------------------------------------------------------

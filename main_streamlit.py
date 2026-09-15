@@ -497,7 +497,10 @@ def render_employee_view():
 
         if tasks:
             for task in tasks:
-                with st.expander(f"📌 {task['project']} - [{task['state']}]"):
+                # Icono dinámico para la vista del empleado
+                icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else ('⏳' if task['state'] in ('Enviar a Revisión', 'En Revisión') else '📌'))
+                
+                with st.expander(f"{icon} {task['project']} - [{task['state']}]"):
                     col_t1, col_t2 = st.columns(2)
                     with col_t1:
                         st.info(f"📅 **Inicio:** {task['start_time'] or 'Sin definir'}")
@@ -505,31 +508,35 @@ def render_employee_view():
                         st.warning(f"⏰ **Límite:** {task['end_time'] or 'Sin definir'}")
 
                     st.write(f"**Descripción:** {task['description']}")
-                    st.write(f"**Observaciones previas:** {task['notes'] or 'Ninguna'}")
+                    
+                    st.divider()
 
-                    col_act1, col_act2 = st.columns(2)
-                    with col_act1:
-                        new_state = st.selectbox(
-                            "Actualizar Estado",
-                            ["Asignada", "En Progreso", "Completada", "Bloqueada"],
-                            key=f"st_{task['id']}",
-                        )
-                    with col_act2:
-                        new_notes = st.text_input(
-                            "Observaciones adicionales (Opcional)",
-                            value="",
-                            key=f"nt_{task['id']}",
-                        )
+                    # CONTROL DE ESTADO BIDIRECCIONAL
+                    if task['state'] == 'Completada':
+                        st.success("✅ **Tarea Aprobada y Cerrada.** Esta tarea ya fue validada por la administración y no admite más cambios.")
+                    else:
+                        st.markdown("#### Actualizar Estado")
+                        
+                        # Opciones lógicas permitidas para el empleado
+                        estados_posibles = ["Asignada", "En Progreso", "Enviar a Revisión", "Bloqueada"]
+                        idx_actual = estados_posibles.index(task['state']) if task['state'] in estados_posibles else 0
+                        
+                        col_act1, col_act2 = st.columns([3, 1])
+                        with col_act1:
+                            new_state = st.selectbox(
+                                "Seleccione el estado",
+                                estados_posibles,
+                                index=idx_actual,
+                                key=f"st_{task['id']}",
+                                label_visibility="collapsed"
+                            )
+                        with col_act2:
+                            update_btn = st.button("Actualizar", key=f"btn_{task['id']}", type="primary", use_container_width=True)
 
-                    if st.button("Actualizar Tarea", key=f"btn_{task['id']}", use_container_width=True):
-                        if new_state == "Bloqueada" and not new_notes.strip():
-                            st.warning("Debes ingresar una observación si bloqueas la tarea.")
-                        else:
+                        if update_btn:
                             final_notes = task["notes"] or ""
 
-                            if new_notes.strip():
-                                final_notes += f"\nNote: {new_notes.strip()}"
-
+                            # Validación de Plazos (Fuera de Plazo)
                             if task["end_time"]:
                                 limit_dt = (
                                     task["end_time"]
@@ -541,8 +548,8 @@ def render_employee_view():
                                 if curr_dt > limit_dt:
                                     tag_fuera_plazo = "[ENTREGADO FUERA DE PLAZO]"
                                     if tag_fuera_plazo not in final_notes:
-                                        final_notes = f"{tag_fuera_plazo} {final_notes}".strip()
-                                    st.warning("⚠️ El reporte fue enviado fuera del tiempo límite.")
+                                        final_notes = f"{tag_fuera_plazo}\n{final_notes}".strip()
+                                    st.warning("⚠️ El estado fue actualizado fuera del tiempo límite.")
 
                             execute(
                                 "UPDATE Tareas SET Estado_Tarea=%s, Observaciones=%s WHERE ID_Tarea=%s AND ID_Trabajador=%s",
@@ -550,14 +557,17 @@ def render_employee_view():
                             )
                             st.success("Tarea actualizada correctamente.")
                             st.rerun()
+                            
+                        st.caption("💡 *Si necesitas explicar un bloqueo o retraso, utiliza el chat de la tarea.*")
 
                     st.divider()
-                    st.markdown("💬 **Feedback y Comunicación**")
                     
+                    # SECCIÓN DE CHAT Y COMUNICACIÓN
+                    st.markdown("💬 **Feedback y Comunicación**")
                     render_chat_fragment(task["id"], "Empleado")
 
                     # CAMPO ADJUNTO + MENSAJE
-                    uploaded_file_emp = st.file_uploader("📎 Adjuntar Archivo", key=f"file_emp_{task['id']}")
+                    uploaded_file_emp = st.file_uploader("📎 Adjuntar Archivo o Entregable", key=f"file_emp_{task['id']}")
                     col_msg1, col_msg2 = st.columns([3, 1])
                     with col_msg1:
                         reply_msg = st.text_input("Agregar comentario...", key=f"input_emp_{task['id']}", label_visibility="collapsed")
@@ -582,7 +592,7 @@ def render_employee_view():
                                 agregar_comentario(task["id"], user["name"], "Empleado", final_message)
                                 st.rerun()
                             else:
-                                st.warning("Escribe un mensaje o adjunta un archivo.")
+                                st.warning("Escribe un mensaje o adjunta un archivo antes de enviar.")
         else:
             st.info("No tienes tareas asignadas para el día de hoy.")
 

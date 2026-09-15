@@ -518,7 +518,7 @@ def render_employee_view():
                         st.markdown("#### Actualizar Estado")
                         
                         # Opciones lógicas permitidas para el empleado
-                        estados_posibles = ["Asignada", "En Progreso", "Enviar a Revisión", "Bloqueada"]
+                        estados_posibles = ["En Progreso", "Enviar a Revisión"]
                         idx_actual = estados_posibles.index(task['state']) if task['state'] in estados_posibles else 0
                         
                         col_act1, col_act2 = st.columns([3, 1])

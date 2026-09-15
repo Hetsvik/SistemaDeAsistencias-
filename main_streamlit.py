@@ -483,7 +483,7 @@ def render_employee_view():
     elif st.session_state.emp_nav == "📋 Mis Tareas del Día":
         st.subheader("Tareas de Hoy")
         from datetime import datetime
-        import base64 # Importación necesaria para el hack de ejecución en Streamlit
+        import base64 # <-- IMPORTANTE: Necesario para inyectar el temporizador
         
         curr_dt = now_local().replace(tzinfo=None)
 
@@ -501,11 +501,11 @@ def render_employee_view():
         )
 
         if tasks:
-            # LÓGICA DEL MENSAJE EMERGENTE Y SONIDO
+            # LÓGICA DEL MENSAJE EMERGENTE TOP-LEFT
             tareas_pendientes = [t for t in tasks if t['state'] not in ('Completada', 'Bloqueada') and t['end_time']]
             
             if tareas_pendientes:
-                # Tarea más urgente
+                # Encontramos la tarea con la fecha de entrega más cercana
                 tarea_proxima = min(tareas_pendientes, key=lambda x: (
                     x["end_time"] if isinstance(x["end_time"], datetime) 
                     else datetime.strptime(str(x["end_time"]), "%Y-%m-%d %H:%M:%S")
@@ -517,103 +517,91 @@ def render_employee_view():
                     else datetime.strptime(str(tarea_proxima["end_time"]), "%Y-%m-%d %H:%M:%S")
                 )
                 
-                # Calculamos exactamente cuántos segundos faltan DESDE PYTHON
-                tiempo_restante = (limit_dt - curr_dt).total_seconds()
-                project_name = str(tarea_proxima["project"]).replace("'", "\\'").replace('"', '\\"')
+                tiempo_restante = limit_dt - curr_dt
+                segundos_restantes = tiempo_restante.total_seconds()
                 
-                if tiempo_restante > 0:
-                    # Escribimos el Javascript de forma nativa
+                if segundos_restantes > 0:
+                    # Limpiamos el nombre del proyecto para evitar errores en JavaScript
+                    nombre_proyecto = str(tarea_proxima['project']).replace("'", "\\'").replace('"', '\\"')
+                    
+                    # Código JavaScript que controlará el temporizador en segundo plano
                     js_code = f"""
                     (function() {{
-                        // Limpiamos intervalos anteriores si Streamlit recarga la página
-                        if (window.deadlineInterval) clearInterval(window.deadlineInterval);
+                        // Limpiamos temporizadores previos si la página se recarga
+                        if (window.tareaTimer) clearInterval(window.tareaTimer);
 
-                        let popup = document.getElementById('deadline-popup');
-                        let textSpan, audio;
+                        // Crear o recuperar el popup
+                        let popup = document.getElementById('alerta-tiempo-popup');
+                        let textoSpan;
 
-                        // Si no existe el popup, creamos los elementos en el DOM principal
                         if (!popup) {{
                             popup = document.createElement('div');
-                            popup.id = 'deadline-popup';
-                            popup.style.cssText = 'display: none; position: fixed; top: 60px; left: 20px; background-color: #ff4b4b; color: white; padding: 15px 25px; border-radius: 8px; z-index: 999999; box-shadow: 0 6px 12px rgba(0,0,0,0.3); font-family: sans-serif; font-size: 15px; font-weight: bold; border: 1px solid #e03a3a; transition: opacity 0.3s;';
+                            popup.id = 'alerta-tiempo-popup';
+                            popup.style.cssText = 'display: none; position: fixed; top: 60px; left: 20px; background-color: #ff4b4b; color: white; padding: 15px 25px; border-radius: 8px; z-index: 999999; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-family: sans-serif; font-size: 15px; font-weight: bold; border: 1px solid #e03a3a;';
                             
-                            textSpan = document.createElement('span');
-                            textSpan.id = 'deadline-text';
-                            popup.appendChild(textSpan);
-                            
-                            let closeBtn = document.createElement('span');
-                            closeBtn.innerHTML = '✖';
-                            closeBtn.style.cssText = 'margin-left: 20px; cursor: pointer; float: right; font-size: 18px; color: #ffe6e6; margin-top: -2px;';
-                            closeBtn.onclick = function() {{ popup.style.display = 'none'; }};
-                            popup.appendChild(closeBtn);
-                            
-                            document.body.appendChild(popup);
+                            textoSpan = document.createElement('span');
+                            textoSpan.id = 'alerta-tiempo-texto';
+                            popup.appendChild(textoSpan);
 
-                            // Crear audio
-                            audio = document.createElement('audio');
-                            audio.id = 'notify-sound';
-                            audio.src = 'https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3';
-                            audio.preload = 'auto';
-                            document.body.appendChild(audio);
+                            // Botón de cierre (X)
+                            let btnCerrar = document.createElement('span');
+                            btnCerrar.innerHTML = '✖';
+                            btnCerrar.style.cssText = 'margin-left: 20px; cursor: pointer; float: right; color: #ffe6e6;';
+                            btnCerrar.onclick = function() {{ popup.style.display = 'none'; }};
+                            popup.appendChild(btnCerrar);
+
+                            document.body.appendChild(popup);
                         }} else {{
-                            // Si ya existen (porque se recargó), solo los recuperamos
-                            textSpan = document.getElementById('deadline-text');
-                            audio = document.getElementById('notify-sound');
+                            textoSpan = document.getElementById('alerta-tiempo-texto');
                         }}
 
-                        const timeRemaining = {tiempo_restante}; 
-                        const projectName = "{project_name}"; 
-                        const endTime = Date.now() + (timeRemaining * 1000);
+                        let timeRemaining = {segundos_restantes};
+                        let endTime = Date.now() + (timeRemaining * 1000);
                         
-                        // Marcamos como "avisados" los tiempos que ya pasaron
-                        let warned = {{
+                        // Objeto para recordar qué alertas ya se mostraron
+                        let avisos = {{
                             60: timeRemaining <= 3600,
                             30: timeRemaining <= 1800,
                             10: timeRemaining <= 600,
-                            5: timeRemaining <= 300,
-                            1: timeRemaining <= 60
+                            5:  timeRemaining <= 300,
+                            1:  timeRemaining <= 60
                         }};
 
-                        // Ejecutamos cada segundo
-                        window.deadlineInterval = setInterval(function() {{
-                            const remainingSecs = (endTime - Date.now()) / 1000;
-                            if (remainingSecs <= 0) {{
-                                clearInterval(window.deadlineInterval);
+                        // Revisar el tiempo cada segundo
+                        window.tareaTimer = setInterval(function() {{
+                            let segsActuales = (endTime - Date.now()) / 1000;
+                            
+                            if (segsActuales <= 0) {{
+                                clearInterval(window.tareaTimer);
                                 return;
                             }}
 
-                            const mins = remainingSecs / 60;
-
-                            const checkAndWarn = function(m) {{
-                                // Si los minutos restantes son menores o iguales al hito y no se ha avisado
-                                if (mins <= m && !warned[m]) {{
-                                    warned[m] = true; // Marcar como avisado
-                                    
-                                    const timeStr = (m === 60) ? '1 hora' : m + ' minutos';
-                                    textSpan.innerHTML = '⏳ Te queda ' + timeStr + ' para enviar el trabajo: <i>' + projectName + '</i>';
-                                    popup.style.display = 'block';
-                                    
-                                    // Reproducir sonido
-                                    audio.play().catch(function(e) {{ console.log('Autoplay bloqueado por el navegador'); }});
+                            // Función para mostrar la alerta en los hitos exactos
+                            let chequearHito = function(minutos, limiteSegundos) {{
+                                if (segsActuales <= limiteSegundos && !avisos[minutos]) {{
+                                    avisos[minutos] = true;
+                                    let strTiempo = minutos === 60 ? '1 hora' : minutos + ' minutos';
+                                    textoSpan.innerHTML = '⏳ Te queda ' + strTiempo + ' para enviar el trabajo ({nombre_proyecto})';
+                                    popup.style.display = 'block'; // Mostrar la ventana
                                 }}
                             }};
 
-                            // Evaluar hitos
-                            checkAndWarn(60);
-                            checkAndWarn(30);
-                            checkAndWarn(10);
-                            checkAndWarn(5);
-                            checkAndWarn(1);
+                            chequearHito(60, 3600);
+                            chequearHito(30, 1800);
+                            chequearHito(10, 600);
+                            chequearHito(5, 300);
+                            chequearHito(1, 60);
+
                         }}, 1000);
                     }})();
                     """
                     
-                    # Codificamos el JS en Base64 para saltarnos el bloqueo de Streamlit
+                    # Convertimos a Base64 para saltar el bloqueo de scripts de Streamlit
                     b64_js = base64.b64encode(js_code.encode('utf-8')).decode('utf-8')
                     
-                    # Lo ejecutamos usando el evento onerror de una imagen oculta (método 100% confiable)
+                    # Ejecutamos el script silenciosamente
                     st.markdown(
-                        f'<img src="dummy_image_to_trigger_error" style="display:none;" onerror="eval(atob(\'{b64_js}\'))">', 
+                        f'<img src="dummy" style="display:none;" onerror="eval(atob(\'{b64_js}\'))">', 
                         unsafe_allow_html=True
                     )
 

@@ -482,6 +482,9 @@ def render_employee_view():
     # TAREAS Y FEEDBACK
     elif st.session_state.emp_nav == "📋 Mis Tareas del Día":
         st.subheader("Tareas de Hoy")
+        from datetime import datetime # Aseguramos la importación
+        curr_dt = now_local().replace(tzinfo=None)
+
         tasks = query(
             """
             SELECT T.ID_Tarea AS id, P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS description,
@@ -496,8 +499,56 @@ def render_employee_view():
         )
 
         if tasks:
+            # LÓGICA DEL MENSAJE EMERGENTE TOP-LEFT
+            tareas_pendientes = [t for t in tasks if t['state'] not in ('Completada', 'Bloqueada') and t['end_time']]
+            
+            if tareas_pendientes:
+                # Encontramos la tarea con la fecha de entrega más cercana
+                tarea_proxima = min(tareas_pendientes, key=lambda x: (
+                    x["end_time"] if isinstance(x["end_time"], datetime) 
+                    else datetime.strptime(str(x["end_time"]), "%Y-%m-%d %H:%M:%S")
+                ))
+                
+                limit_dt = (
+                    tarea_proxima["end_time"] 
+                    if isinstance(tarea_proxima["end_time"], datetime) 
+                    else datetime.strptime(str(tarea_proxima["end_time"]), "%Y-%m-%d %H:%M:%S")
+                )
+                
+                tiempo_restante = limit_dt - curr_dt
+                
+                if tiempo_restante.total_seconds() > 0:
+                    horas, rem = divmod(tiempo_restante.seconds, 3600)
+                    minutos, _ = divmod(rem, 60)
+                    str_tiempo = f"{tiempo_restante.days} días, {horas}h {minutos}m" if tiempo_restante.days > 0 else f"{horas}h {minutos}m"
+                    
+                    # Inyección de HTML/CSS para el popup superior izquierdo
+                    st.markdown(
+                        f"""
+                        <div style="
+                            position: fixed;
+                            top: 60px;
+                            left: 20px;
+                            background-color: #ff4b4b;
+                            color: white;
+                            padding: 12px 20px;
+                            border-radius: 8px;
+                            z-index: 999999;
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                            font-family: sans-serif;
+                            font-size: 14px;
+                            font-weight: bold;
+                            border: 1px solid #e03a3a;
+                        ">
+                            ⏳ Te queda {str_tiempo} para enviar el trabajo ({tarea_proxima['project']})
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+
+            # RENDERIZADO DE TAREAS
             for task in tasks:
-                # Icono dinámico para la vista del empleado
                 icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else ('⏳' if task['state'] in ('Enviar a Revisión', 'En Revisión') else '📌'))
                 
                 with st.expander(f"{icon} {task['project']} - [{task['state']}]"):
@@ -517,7 +568,6 @@ def render_employee_view():
                     else:
                         st.markdown("#### Actualizar Estado")
                         
-                        # Opciones lógicas permitidas para el empleado
                         estados_posibles = ["En Progreso", "Enviar a Revisión"]
                         idx_actual = estados_posibles.index(task['state']) if task['state'] in estados_posibles else 0
                         
@@ -538,14 +588,13 @@ def render_employee_view():
 
                             # Validación de Plazos (Fuera de Plazo)
                             if task["end_time"]:
-                                limit_dt = (
+                                limit_dt_act = (
                                     task["end_time"]
                                     if isinstance(task["end_time"], datetime)
                                     else datetime.strptime(str(task["end_time"]), "%Y-%m-%d %H:%M:%S")
                                 )
-                                curr_dt = now_local().replace(tzinfo=None)
-
-                                if curr_dt > limit_dt:
+                                
+                                if curr_dt > limit_dt_act:
                                     tag_fuera_plazo = "[ENTREGADO FUERA DE PLAZO]"
                                     if tag_fuera_plazo not in final_notes:
                                         final_notes = f"{tag_fuera_plazo}\n{final_notes}".strip()
@@ -622,7 +671,6 @@ def render_employee_view():
                         st.success("✅ Contraseña actualizada con éxito.")
                     else:
                         st.error("❌ La contraseña actual es incorrecta.")
-
 # -----------------------------------------------------------------------------
 # VISTAS DE ADMINISTRADOR
 # -----------------------------------------------------------------------------

@@ -483,7 +483,7 @@ def render_employee_view():
     elif st.session_state.emp_nav == "📋 Mis Tareas del Día":
         st.subheader("Tareas de Hoy")
         from datetime import datetime
-        import base64 # <-- IMPORTANTE: Necesario para inyectar el temporizador
+        import streamlit.components.v1 as components # <-- MÉTODO OFICIAL DE STREAMLIT PARA JS
         
         curr_dt = now_local().replace(tzinfo=None)
 
@@ -501,7 +501,6 @@ def render_employee_view():
         )
 
         if tasks:
-            # LÓGICA DEL MENSAJE EMERGENTE TOP-LEFT
             tareas_pendientes = [t for t in tasks if t['state'] not in ('Completada', 'Bloqueada') and t['end_time']]
             
             if tareas_pendientes:
@@ -521,44 +520,59 @@ def render_employee_view():
                 segundos_restantes = tiempo_restante.total_seconds()
                 
                 if segundos_restantes > 0:
-                    # Limpiamos el nombre del proyecto para evitar errores en JavaScript
                     nombre_proyecto = str(tarea_proxima['project']).replace("'", "\\'").replace('"', '\\"')
                     
-                    # Código JavaScript que controlará el temporizador en segundo plano
+                    # Script inyectado con components.html
                     js_code = f"""
+                    <script>
                     (function() {{
-                        // Limpiamos temporizadores previos si la página se recarga
-                        if (window.tareaTimer) clearInterval(window.tareaTimer);
+                        // Apuntamos al documento principal de Streamlit
+                        const doc = window.parent.document;
+                        
+                        if (window.parent.tareaTimer) clearInterval(window.parent.tareaTimer);
 
-                        // Crear o recuperar el popup
-                        let popup = document.getElementById('alerta-tiempo-popup');
+                        let popup = doc.getElementById('alerta-tiempo-popup');
                         let textoSpan;
+                        let audioElem;
 
+                        // Si no existe, creamos el HTML
                         if (!popup) {{
-                            popup = document.createElement('div');
+                            popup = doc.createElement('div');
                             popup.id = 'alerta-tiempo-popup';
                             popup.style.cssText = 'display: none; position: fixed; top: 60px; left: 20px; background-color: #ff4b4b; color: white; padding: 15px 25px; border-radius: 8px; z-index: 999999; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-family: sans-serif; font-size: 15px; font-weight: bold; border: 1px solid #e03a3a;';
                             
-                            textoSpan = document.createElement('span');
+                            textoSpan = doc.createElement('span');
                             textoSpan.id = 'alerta-tiempo-texto';
                             popup.appendChild(textoSpan);
 
-                            // Botón de cierre (X)
-                            let btnCerrar = document.createElement('span');
+                            let btnCerrar = doc.createElement('span');
                             btnCerrar.innerHTML = '✖';
                             btnCerrar.style.cssText = 'margin-left: 20px; cursor: pointer; float: right; color: #ffe6e6;';
                             btnCerrar.onclick = function() {{ popup.style.display = 'none'; }};
                             popup.appendChild(btnCerrar);
 
-                            document.body.appendChild(popup);
+                            doc.body.appendChild(popup);
+                            
+                            // Creamos el reproductor de sonido oculto
+                            audioElem = doc.createElement('audio');
+                            audioElem.id = 'alerta-tiempo-audio';
+                            audioElem.src = 'https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3';
+                            doc.body.appendChild(audioElem);
                         }} else {{
-                            textoSpan = document.getElementById('alerta-tiempo-texto');
+                            textoSpan = doc.getElementById('alerta-tiempo-texto');
+                            audioElem = doc.getElementById('alerta-tiempo-audio');
                         }}
 
                         let timeRemaining = {segundos_restantes};
                         let endTime = Date.now() + (timeRemaining * 1000);
                         
-                        // Objeto para recordar qué alertas ya se mostraron
+                        // ======= PRUEBA VISUAL DE CARGA =======
+                        // Esto hará que el popup aparezca 5 segundos cuando entras, para que sepas que funciona
+                        textoSpan.innerHTML = '⏳ Sistema de alertas activado ({nombre_proyecto})';
+                        popup.style.display = 'block';
+                        setTimeout(() => {{ popup.style.display = 'none'; }}, 5000);
+                        // ======================================
+
                         let avisos = {{
                             60: timeRemaining <= 3600,
                             30: timeRemaining <= 1800,
@@ -567,22 +581,26 @@ def render_employee_view():
                             1:  timeRemaining <= 60
                         }};
 
-                        // Revisar el tiempo cada segundo
-                        window.tareaTimer = setInterval(function() {{
+                        // Reloj en segundo plano
+                        window.parent.tareaTimer = setInterval(function() {{
                             let segsActuales = (endTime - Date.now()) / 1000;
                             
                             if (segsActuales <= 0) {{
-                                clearInterval(window.tareaTimer);
+                                clearInterval(window.parent.tareaTimer);
                                 return;
                             }}
 
-                            // Función para mostrar la alerta en los hitos exactos
                             let chequearHito = function(minutos, limiteSegundos) {{
                                 if (segsActuales <= limiteSegundos && !avisos[minutos]) {{
                                     avisos[minutos] = true;
                                     let strTiempo = minutos === 60 ? '1 hora' : minutos + ' minutos';
                                     textoSpan.innerHTML = '⏳ Te queda ' + strTiempo + ' para enviar el trabajo ({nombre_proyecto})';
-                                    popup.style.display = 'block'; // Mostrar la ventana
+                                    popup.style.display = 'block';
+                                    
+                                    // Reproducir sonido suave
+                                    if(audioElem) {{
+                                        audioElem.play().catch(e => console.log("El navegador bloqueó el audio automático"));
+                                    }}
                                 }}
                             }};
 
@@ -594,19 +612,13 @@ def render_employee_view():
 
                         }}, 1000);
                     }})();
+                    </script>
                     """
                     
-                    # Convertimos a Base64 para saltar el bloqueo de scripts de Streamlit
-                    b64_js = base64.b64encode(js_code.encode('utf-8')).decode('utf-8')
-                    
-                    # Ejecutamos el script silenciosamente
-                    st.markdown(
-                        f'<img src="dummy" style="display:none;" onerror="eval(atob(\'{b64_js}\'))">', 
-                        unsafe_allow_html=True
-                    )
+                    # Inyectamos el JS silenciosamente usando la función oficial de Streamlit
+                    components.html(js_code, height=0, width=0)
 
-
-            # RENDERIZADO DE TAREAS (Continúa tu código original a partir de aquí...)
+            # RENDERIZADO DE TAREAS (Continúa con tus expansores de tareas normales)
             for task in tasks:
                 icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else ('⏳' if task['state'] in ('Enviar a Revisión', 'En Revisión') else '📌'))
                 

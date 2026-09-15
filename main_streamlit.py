@@ -482,7 +482,7 @@ def render_employee_view():
     # TAREAS Y FEEDBACK
     elif st.session_state.emp_nav == "📋 Mis Tareas del Día":
         st.subheader("Tareas de Hoy")
-        from datetime import datetime # Aseguramos la importación
+        from datetime import datetime
         curr_dt = now_local().replace(tzinfo=None)
 
         tasks = query(
@@ -499,7 +499,7 @@ def render_employee_view():
         )
 
         if tasks:
-            # LÓGICA DEL MENSAJE EMERGENTE TOP-LEFT
+            # LÓGICA DEL MENSAJE EMERGENTE TOP-LEFT CON JAVASCRIPT Y AUDIO
             tareas_pendientes = [t for t in tasks if t['state'] not in ('Completada', 'Bloqueada') and t['end_time']]
             
             if tareas_pendientes:
@@ -515,39 +515,88 @@ def render_employee_view():
                     else datetime.strptime(str(tarea_proxima["end_time"]), "%Y-%m-%d %H:%M:%S")
                 )
                 
-                tiempo_restante = limit_dt - curr_dt
+                # Convertimos la fecha límite a un formato que JavaScript entienda fácilmente (ISO)
+                limit_str_iso = limit_dt.strftime("%Y-%m-%dT%H:%M:%S")
                 
-                if tiempo_restante.total_seconds() > 0:
-                    horas, rem = divmod(tiempo_restante.seconds, 3600)
-                    minutos, _ = divmod(rem, 60)
-                    str_tiempo = f"{tiempo_restante.days} días, {horas}h {minutos}m" if tiempo_restante.days > 0 else f"{horas}h {minutos}m"
+                # Inyección de HTML, CSS y JAVASCRIPT
+                st.markdown(
+                    f"""
+                    <!-- Etiqueta de audio oculta con un sonido suave (campana de notificación) -->
+                    <audio id="notify-sound" src="https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3" preload="auto"></audio>
                     
-                    # Inyección de HTML/CSS para el popup superior izquierdo
-                    st.markdown(
-                        f"""
-                        <div style="
-                            position: fixed;
-                            top: 60px;
-                            left: 20px;
-                            background-color: #ff4b4b;
-                            color: white;
-                            padding: 12px 20px;
-                            border-radius: 8px;
-                            z-index: 999999;
-                            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-                            font-family: sans-serif;
-                            font-size: 14px;
-                            font-weight: bold;
-                            border: 1px solid #e03a3a;
-                        ">
-                            ⏳ Te queda {str_tiempo} para enviar el trabajo ({tarea_proxima['project']})
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
+                    <!-- Contenedor del Popup (inicia oculto con display:none) -->
+                    <div id="deadline-popup" style="
+                        display: none;
+                        position: fixed;
+                        top: 60px;
+                        left: 20px;
+                        background-color: #ff4b4b;
+                        color: white;
+                        padding: 15px 25px;
+                        border-radius: 8px;
+                        z-index: 999999;
+                        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+                        font-family: sans-serif;
+                        font-size: 15px;
+                        font-weight: bold;
+                        border: 1px solid #e03a3a;
+                        transition: opacity 0.3s;
+                    ">
+                        <span id="deadline-text">⏳ Te queda tiempo.</span>
+                        <span onclick="document.getElementById('deadline-popup').style.display='none'" style="
+                            margin-left: 20px; 
+                            cursor: pointer; 
+                            float: right; 
+                            font-size: 18px; 
+                            color: #ffe6e6;
+                        ">✖</span>
+                    </div>
 
+                    <script>
+                        // Extraemos la fecha objetivo desde Python
+                        const targetDate = new Date("{limit_str_iso}").getTime();
+                        
+                        // Objeto para registrar si ya se avisó en ese hito exacto y no repetir el sonido
+                        let warned = {{ 60: false, 30: false, 10: false, 5: false, 1: false }};
 
-            # RENDERIZADO DE TAREAS
+                        // Un intervalo que se ejecuta cada segundo en el navegador del empleado
+                        const interval = setInterval(() => {{
+                            const now = new Date().getTime();
+                            const diff = targetDate - now;
+
+                            if (diff <= 0) {{
+                                clearInterval(interval);
+                                return;
+                            }}
+
+                            const minutesLeft = Math.floor(diff / 60000);
+                            const secondsLeft = Math.floor((diff % 60000) / 1000);
+
+                            // Condición: Si los minutos restantes coinciden con nuestros hitos y el segundo es 0
+                            if ([60, 30, 10, 5, 1].includes(minutesLeft) && secondsLeft === 0 && !warned[minutesLeft]) {{
+                                warned[minutesLeft] = true; // Marcar como avisado
+                                
+                                const popup = document.getElementById('deadline-popup');
+                                const text = document.getElementById('deadline-text');
+                                const sound = document.getElementById('notify-sound');
+
+                                // Formatear el texto
+                                let timeStr = minutesLeft === 60 ? '1 hora' : minutesLeft + ' minutos';
+                                text.innerHTML = '⏳ Te queda ' + timeStr + ' para enviar el trabajo: <i>{tarea_proxima["project"]}</i>';
+                                
+                                // Mostrar ventana
+                                popup.style.display = 'block';
+
+                                // Reproducir el sonido
+                                sound.play().catch(e => console.log("El navegador bloqueó el autoplay."));
+                            }}
+                        }}, 1000);
+                    </script>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+            # RENDERIZADO DE TAREAS (Continúa tu código original aquí...)
             for task in tasks:
                 icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else ('⏳' if task['state'] in ('Enviar a Revisión', 'En Revisión') else '📌'))
                 
@@ -863,7 +912,6 @@ def render_admin_view():
                 f_entrega_time = st.time_input("Hora de Entrega")
 
             desc = st.text_area("Descripción")
-            state = st.selectbox("Estado", ["Asignada", "En Progreso"])
 
             if st.button("Asignar Tarea"):
                 if not desc.strip():
@@ -878,22 +926,20 @@ def render_admin_view():
                         execute(
                             """
                             INSERT INTO Tareas (ID_Trabajador, ID_Administrador_Asignador, ID_Proyecto, Descripcion_Tarea, Estado_Tarea, Fecha_Inicio, Fecha_Entrega, Fecha)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, CURDATE())
+                            VALUES (%s, %s, %s, %s, 'Asignada', %s, %s, CURDATE())
                             """,
                             (
                                 w_dict[selected_w],
                                 st.session_state.user["id"],
                                 p_dict[selected_p],
                                 desc.strip(),
-                                state,
+                                # 'Asignada' ahora está hardcodeado en la consulta SQL
                                 dt_inicio.strftime("%Y-%m-%d %H:%M:%S"),
                                 dt_entrega.strftime("%Y-%m-%d %H:%M:%S"),
                             ),
                         )
                         st.success("Tarea asignada exitosamente.")
                         st.rerun()
-
-   # GESTIÓN DE PERSONAL
     with tab3:
         st.subheader("➕ Registrar Nuevo Trabajador")
         with st.form("form_worker"):

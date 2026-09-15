@@ -1,3 +1,7 @@
+import pandas as pd
+from datetime import timedelta
+import calendar
+from datetime import time as dtime
 from datetime import datetime
 import mysql.connector
 import os
@@ -614,8 +618,8 @@ def render_employee_view():
 def render_admin_view():
     st.title("⚙️ Panel de Administración")
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(
-        ["📊 Monitoreo y Control", "➕ Asignar Tareas", "👥 Personal", "📁 Proyectos", "👤 Mi Perfil"]
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+        ["📊 Monitoreo", "➕ Asignar Tareas", "👥 Personal", "📁 Proyectos", "👤 Mi Perfil", "📈 Reportes"]
     )
 
     # MONITOREO ESTILO CLICKUP
@@ -1058,6 +1062,128 @@ def render_admin_view():
                         st.success("✅ Contraseña actualizada con éxito.")
                     else:
                         st.error("❌ La contraseña actual es incorrecta.")
+
+
+    # REPORTES ANALÍTICOS Y KARDEX DE EMPLEADO
+    with tab6:
+        st.subheader("📈 Reporte Analítico de Rendimiento")
+        
+        # 1. Selector de Empleados
+        workers_report = query("""
+            SELECT W.ID_Trabajador AS id, E.Nombre_Completo AS name, W.Codigo_Trabajador AS code
+            FROM Trabajadores W
+            JOIN Empleados E ON E.ID_Empleado = W.ID_Empleado
+            WHERE E.Estado = 'Activo' ORDER BY E.Nombre_Completo
+        """)
+        
+        if workers_report:
+            col_filt1, col_filt2 = st.columns(2)
+            with col_filt1:
+                w_dict_rep = {f"{w['code']} - {w['name']}": w["id"] for w in workers_report}
+                selected_worker_rep = st.selectbox("👤 Seleccionar Empleado:", list(w_dict_rep.keys()))
+            
+            with col_filt2:
+                rango_tiempo = st.selectbox("📅 Periodo de Evaluación:", ["Esta Semana", "Este Mes", "Mes Anterior"])
+            
+            worker_id_rep = w_dict_rep[selected_worker_rep]
+            
+            # 2. Lógica Dinámica de Fechas
+            hoy = today_local()
+            if rango_tiempo == "Esta Semana":
+                inicio_fecha = hoy - timedelta(days=hoy.weekday()) # Lunes
+                fin_fecha = inicio_fecha + timedelta(days=6)       # Domingo
+            elif rango_tiempo == "Este Mes":
+                inicio_fecha = hoy.replace(day=1)
+                ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
+                fin_fecha = hoy.replace(day=ultimo_dia)
+            else: # Mes Anterior
+                primer_dia_mes_actual = hoy.replace(day=1)
+                fin_fecha = primer_dia_mes_actual - timedelta(days=1)
+                inicio_fecha = fin_fecha.replace(day=1)
+
+            st.caption(f"Visualizando datos desde **{inicio_fecha.strftime('%d/%m/%Y')}** hasta **{fin_fecha.strftime('%d/%m/%Y')}**")
+            
+            if st.button("📊 Generar Reporte", type="primary"):
+                
+                # --- 3. EL PODER DEL MOTOR SQL (Consultas Optimizadas) ---
+                # A. KPIs de Asistencia en 1 sola consulta
+                kpi_asistencia = query("""
+                    SELECT 
+                        COUNT(*) AS total_dias,
+                        SUM(CASE WHEN TIME(Fecha_Entrada) <= '09:40:00' THEN 1 ELSE 0 END) AS a_tiempo,
+                        SUM(CASE WHEN TIME(Fecha_Entrada) > '09:40:00' THEN 1 ELSE 0 END) AS tardanzas
+                    FROM Asistencia 
+                    WHERE ID_Trabajador = %s AND Fecha_Calculada BETWEEN %s AND %s
+                """, (worker_id_rep, inicio_fecha, fin_fecha))
+                
+                # B. KPIs de Tareas en 1 sola consulta
+                kpi_tareas = query("""
+                    SELECT 
+                        COUNT(*) AS total_tareas,
+                        SUM(CASE WHEN Estado_Tarea = 'Completada' THEN 1 ELSE 0 END) AS completadas
+                    FROM Tareas 
+                    WHERE ID_Trabajador = %s AND Fecha BETWEEN %s AND %s
+                """, (worker_id_rep, inicio_fecha, fin_fecha))
+
+                # Extraer valores y asegurar que no sean NULL (conversión a entero seguro)
+                a_tiempo = int(kpi_asistencia[0]['a_tiempo'] or 0) if kpi_asistencia else 0
+                tardanzas = int(kpi_asistencia[0]['tardanzas'] or 0) if kpi_asistencia else 0
+                
+                tot_tareas = int(kpi_tareas[0]['total_tareas'] or 0) if kpi_tareas else 0
+                completadas = int(kpi_tareas[0]['completadas'] or 0) if kpi_tareas else 0
+                
+                eficiencia = round((completadas / tot_tareas * 100), 1) if tot_tareas > 0 else 0.0
+
+                # --- 4. RENDERIZADO DEL DASHBOARD (UI/UX PROFESIONAL) ---
+                st.divider()
+                st.markdown(f"### 📈 Resultados de {selected_worker_rep.split('-')[1].strip()}")
+                
+                # Fila 1: Tarjetas de KPIs visuales
+                kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+                kpi1.metric(label="Llegadas a Tiempo", value=f"🟢 {a_tiempo}")
+                kpi2.metric(label="Tardanzas", value=f"🔴 {tardanzas}")
+                kpi3.metric(label="Tareas Completadas", value=f"✅ {completadas} / {tot_tareas}")
+                kpi4.metric(label="Eficiencia", value=f"⚡ {eficiencia}%")
+                
+                st.write("") # Espaciador
+                
+                # Fila 2: Gráfico y Detalles
+                col_graf, col_det = st.columns([1, 1])
+                
+                with col_graf:
+                    st.markdown("#### Distribución de Tareas")
+                    # Consulta SQL con GROUP BY para alimentar el gráfico
+                    graf_tareas = query("""
+                        SELECT Estado_Tarea, COUNT(*) AS Cantidad 
+                        FROM Tareas 
+                        WHERE ID_Trabajador = %s AND Fecha BETWEEN %s AND %s 
+                        GROUP BY Estado_Tarea
+                    """, (worker_id_rep, inicio_fecha, fin_fecha))
+                    
+                    if graf_tareas:
+                        # Convertimos a Pandas DataFrame para integrarlo con el gráfico nativo de Streamlit
+                        df_graf = pd.DataFrame(graf_tareas)
+                        df_graf.set_index('Estado_Tarea', inplace=True)
+                        st.bar_chart(df_graf, color="#c5a880") # Usa el dorado arquitectónico
+                    else:
+                        st.info("No hay datos suficientes para graficar.")
+                        
+                with col_det:
+                    st.markdown("#### Últimas 5 Tareas Asignadas")
+                    ultimas_tareas = query("""
+                        SELECT Descripcion_Tarea AS Tarea, Estado_Tarea AS Estado
+                        FROM Tareas 
+                        WHERE ID_Trabajador = %s AND Fecha BETWEEN %s AND %s
+                        ORDER BY Fecha DESC LIMIT 5
+                    """, (worker_id_rep, inicio_fecha, fin_fecha))
+                    
+                    if ultimas_tareas:
+                        df_ultimas = pd.DataFrame(ultimas_tareas)
+                        st.dataframe(df_ultimas, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("Sin tareas recientes en este periodo.")
+        else:
+            st.info("No hay empleados activos en el sistema.")
 # -----------------------------------------------------------------------------
 # CONTROL DE FLUJO PRINCIPAL Y NOTIFICACIONES
 # -----------------------------------------------------------------------------

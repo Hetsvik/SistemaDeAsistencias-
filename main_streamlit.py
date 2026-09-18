@@ -9,8 +9,8 @@ import os
 import streamlit as st
 from zoneinfo import ZoneInfo
 from services.google_drive_service import GoogleDriveService
-
-#holaaa push actualizado xd
+from repositories.attendance_repo import get_attendance_by_worker_and_date, register_entry, register_exit
+from repositories.auth_repo import get_user_by_id_and_role, authenticate_user
 
 drive = GoogleDriveService()
 
@@ -257,81 +257,10 @@ def render_chat_fragment(id_tarea, rol_usuario):
                 st.info("Inicia la comunicación para dar feedback al empleado.")
 
 # -----------------------------------------------------------------------------
-# MANEJO DE SESIÓN Y PERSISTENCIA (F5)
+# MANEJO DE SESIÓN Y PERSISTENCIA
 # -----------------------------------------------------------------------------
 if "user" not in st.session_state:
     st.session_state.user = None
-
-if st.session_state.user is None and "user_id" in st.query_params:
-    saved_id = st.query_params["user_id"]
-    saved_role = st.query_params.get("role")
-
-    if saved_role == "Administrador":
-        user_data = query(
-            """
-            SELECT A.ID_Administrador AS id, E.Nombre_Completo AS name, 'Administrador' AS role
-            FROM Administrador A
-            JOIN Empleados E ON E.ID_Empleado = A.ID_Empleado
-            WHERE A.ID_Administrador = %s
-            """,
-            (saved_id,),
-            one=True,
-        )
-    elif saved_role == "Empleado":
-        user_data = query(
-            """
-            SELECT W.ID_Trabajador AS id, E.Nombre_Completo AS name, 'Empleado' AS role
-            FROM Trabajadores W
-            JOIN Empleados E ON E.ID_Empleado = W.ID_Empleado
-            WHERE W.ID_Trabajador = %s
-            """,
-            (saved_id,),
-            one=True,
-        )
-    else:
-        user_data = None
-
-    if user_data:
-        st.session_state.user = user_data
-
-def login(code, pin, role):
-    code = code.strip().upper()
-    pin = pin.strip()
-
-    if role in ("Empleado", "Trabajador"):
-        user = query(
-            """
-            SELECT T.ID_Trabajador AS id, E.Nombre_Completo AS name,
-                   T.Rol_Cargo AS position, T.Codigo_Trabajador AS code,
-                   'Empleado' AS role
-            FROM Trabajadores T
-            JOIN Empleados E ON E.ID_Empleado=T.ID_Empleado
-            WHERE UPPER(T.Codigo_Trabajador)=%s
-                AND T.PIN_Acceso=%s
-                AND E.Estado='Activo'
-            """,
-            (code, pin),
-            one=True,
-        )
-    elif role == "Administrador":
-        user = query(
-            """
-            SELECT A.ID_Administrador AS id, E.Nombre_Completo AS name, 'Administrador' AS position,
-                A.Codigo_Administrador AS code,
-                'Administrador' AS role
-            FROM Administrador A
-            JOIN Empleados E ON E.ID_Empleado=A.ID_Empleado
-            WHERE UPPER(A.Codigo_Administrador)=%s
-                AND A.PIN_Acceso=%s
-                AND E.Estado='Activo'
-            """,
-            (code, pin),
-            one=True,
-        )
-    else:
-        return None
-
-    return user
 
 # -----------------------------------------------------------------------------
 # INTERFAZ: LOGIN
@@ -351,11 +280,9 @@ def render_login():
                 st.warning("⚠️ Completa todos los campos.")
                 return
 
-            user = login(code, pin, role)
+            user = authenticate_user(code, pin, role)
             if user:
                 st.session_state.user = user
-                st.query_params["user_id"] = str(user["id"])
-                st.query_params["role"] = user["role"]
                 st.success(f"Bienvenido, {user['name']}")
                 st.rerun()
             else:
@@ -405,22 +332,13 @@ def render_employee_view():
     if st.session_state.emp_nav == "🕒 Control de Asistencia":
         st.subheader("Marcación de Asistencia Hoy")
 
-        attendance = query(
-            """
-            SELECT ID_Asistencia AS id, Fecha_Entrada AS entry, Fecha_Salida AS salida
-            FROM Asistencia
-            WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = %s
-            ORDER BY ID_Asistencia DESC
-            """,
-            (user["id"], today_date),
-            one=True,
-        )
+        attendance = get_attendance_by_worker_and_date(user["id"], today_date)
 
         from datetime import time as dtime
         
         if attendance and attendance.get("entry"):
             hora_entrada = attendance["entry"].time()
-            limite_tolerancia = dtime(9, 40, 0)  # Límite ajustado a las 09:40 AM
+            limite_tolerancia = dtime(9, 40, 0)
             
             if hora_entrada <= limite_tolerancia:
                 st.success("🟢 **A tiempo:** Registraste tu entrada dentro de la tolerancia.")
@@ -451,28 +369,17 @@ def render_employee_view():
                 disabled=bool(attendance),
                 use_container_width=True,
             ):
-                execute(
-                    "INSERT INTO Asistencia (ID_Trabajador, Fecha_Entrada) VALUES (%s, %s)",
-                    (user["id"], now_local().strftime("%Y-%m-%d %H:%M:%S")),
-                )
+                register_entry(user["id"], now_local().strftime("%Y-%m-%d %H:%M:%S"))
+                
                 st.success("Entrada registrada con éxito.")
                 st.rerun()
 
         with col2:
             can_exit = attendance is not None and attendance.get("salida") is None
             if st.button("🔵 Registrar Salida", disabled=not can_exit, use_container_width=True):
-                _, count = execute(
-                    """
-                    UPDATE Asistencia 
-                    SET Fecha_Salida = %s
-                    WHERE ID_Trabajador = %s AND DATE(Fecha_Entrada) = %s AND Fecha_Salida IS NULL
-                    """,
-                    (
-                        now_local().strftime("%Y-%m-%d %H:%M:%S"),
-                        user["id"],
-                        today_date,
-                    ),
-                )
+                
+                _, count = register_exit(user["id"], now_local().strftime("%Y-%m-%d %H:%M:%S"), today_date)
+                
                 if count:
                     st.success("Salida registrada con éxito.")
                     st.rerun()

@@ -16,6 +16,50 @@ from repositories.tareas_repo import (
     get_tasks_by_worker_and_date, update_task_status_by_worker,
     get_all_tasks_for_today, update_task_state_admin, delete_task
 )
+from datetime import datetime
+
+def gestionar_alerta_progresiva(tareas_pendientes):
+    """Alerta progresiva nativa en Streamlit. Recibe tareas del repositorio."""
+    if not tareas_pendientes:
+        return
+
+    ahora = datetime.now()
+    if "control_alertas" not in st.session_state:
+        st.session_state.control_alertas = {}
+
+    for t in tareas_pendientes:
+        t_id = t["id"]
+        if t["state"] in ('Completada', 'Bloqueada') or not t.get("start_time") or not t.get("end_time"):
+            continue
+
+        f_inicio = t["start_time"] if isinstance(t["start_time"], datetime) else datetime.strptime(str(t["start_time"]), "%Y-%m-%d %H:%M:%S")
+        f_entrega = t["end_time"] if isinstance(t["end_time"], datetime) else datetime.strptime(str(t["end_time"]), "%Y-%m-%d %H:%M:%S")
+        
+        tiempo_total = (f_entrega - f_inicio).total_seconds()
+        tiempo_restante = (f_entrega - ahora).total_seconds()
+        
+        if t_id not in st.session_state.control_alertas:
+            st.session_state.control_alertas[t_id] = {"ultimo": ahora, "intervalo": max(300, tiempo_total / 2), "intentos": 1}
+        
+        datos = st.session_state.control_alertas[t_id]
+        
+        if tiempo_restante <= 0:
+            intervalo = 300  
+            cara = "🤬" 
+            msg = f"¡TAREA VENCIDA! El plazo para '{t['project']}' expiró."
+        else:
+            intervalo = datos["intervalo"]
+            cara = "😐" if datos["intentos"] == 1 else "🤨" if datos["intentos"] == 2 else "😠" if datos["intentos"] == 3 else "🤬"
+            horas = int(tiempo_restante // 3600)
+            mins = int((tiempo_restante % 3600) // 60)
+            msg = f"⏳ Quedan {horas}h {mins}m para {t['project']}."
+
+        if datos["intentos"] == 1 or (ahora - datos["ultimo"]).total_seconds() >= intervalo:
+            st.toast(msg, icon=cara)  # <-- MAGIA DE STREAMLIT
+            datos["ultimo"] = ahora
+            datos["intervalo"] = max(300, intervalo / 2)
+            datos["intentos"] += 1
+            break
 drive = GoogleDriveService()
 
 # Configuración de página
@@ -390,75 +434,17 @@ def render_employee_view():
                 else:
                     st.error("No hay entrada activa para hoy.")
 
-    # TAREAS Y FEEDBACK
+   # TAREAS Y FEEDBACK
     elif st.session_state.emp_nav == "📋 Mis Tareas del Día":
         st.subheader("Tareas de Hoy")
-        from datetime import datetime # Aseguramos la importación
-        curr_dt = now_local().replace(tzinfo=None)
-
-        tasks = query(
-            """
-            SELECT T.ID_Tarea AS id, P.Nombre_Proyecto AS project, T.Descripcion_Tarea AS description,
-                   T.Estado_Tarea AS state, T.Observaciones AS notes,
-                   T.Fecha_Inicio AS start_time, T.Fecha_Entrega AS end_time
-            FROM Tareas T
-            JOIN Proyectos P ON P.ID_Proyecto=T.ID_Proyecto
-            WHERE T.ID_Trabajador=%s AND DATE(T.Fecha)=%s
-            ORDER BY T.ID_Tarea DESC
-            """,
-            (user["id"], today_date),
-        )
+        from datetime import datetime
+        
+        # 1. Recuperamos las tareas usando nuestro repositorio y lanzamos la alerta nativa
+        tasks = get_tasks_by_worker_and_date(user["id"], today_date)
+        gestionar_alerta_progresiva(tasks)
 
         if tasks:
-            # LÓGICA DEL MENSAJE EMERGENTE TOP-LEFT
-            tareas_pendientes = [t for t in tasks if t['state'] not in ('Completada', 'Bloqueada') and t['end_time']]
-            
-            if tareas_pendientes:
-                # Encontramos la tarea con la fecha de entrega más cercana
-                tarea_proxima = min(tareas_pendientes, key=lambda x: (
-                    x["end_time"] if isinstance(x["end_time"], datetime) 
-                    else datetime.strptime(str(x["end_time"]), "%Y-%m-%d %H:%M:%S")
-                ))
-                
-                limit_dt = (
-                    tarea_proxima["end_time"] 
-                    if isinstance(tarea_proxima["end_time"], datetime) 
-                    else datetime.strptime(str(tarea_proxima["end_time"]), "%Y-%m-%d %H:%M:%S")
-                )
-                
-                tiempo_restante = limit_dt - curr_dt
-                
-                if tiempo_restante.total_seconds() > 0:
-                    horas, rem = divmod(tiempo_restante.seconds, 3600)
-                    minutos, _ = divmod(rem, 60)
-                    str_tiempo = f"{tiempo_restante.days} días, {horas}h {minutos}m" if tiempo_restante.days > 0 else f"{horas}h {minutos}m"
-                    
-                    # Inyección de HTML/CSS para el popup superior izquierdo
-                    st.markdown(
-                        f"""
-                        <div style="
-                            position: fixed;
-                            top: 60px;
-                            left: 20px;
-                            background-color: #ff4b4b;
-                            color: white;
-                            padding: 12px 20px;
-                            border-radius: 8px;
-                            z-index: 999999;
-                            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-                            font-family: sans-serif;
-                            font-size: 14px;
-                            font-weight: bold;
-                            border: 1px solid #e03a3a;
-                        ">
-                            ⏳ Te queda {str_tiempo} para enviar el trabajo ({tarea_proxima['project']})
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-
-
-            # RENDERIZADO DE TAREAS
+            # 2. RENDERIZADO DE TAREAS
             for task in tasks:
                 icon = '✅' if task['state'] == 'Completada' else ('⏸️' if task['state'] == 'Bloqueada' else ('⏳' if task['state'] in ('Enviar a Revisión', 'En Revisión') else '📌'))
                 
@@ -470,7 +456,6 @@ def render_employee_view():
                         st.warning(f"⏰ **Límite:** {task['end_time'] or 'Sin definir'}")
 
                     st.write(f"**Descripción:** {task['description']}")
-                    
                     st.divider()
 
                     # CONTROL DE ESTADO BIDIRECCIONAL
@@ -478,7 +463,6 @@ def render_employee_view():
                         st.success("✅ **Tarea Aprobada y Cerrada.** Esta tarea ya fue validada por la administración y no admite más cambios.")
                     else:
                         st.markdown("#### Actualizar Estado")
-                        
                         estados_posibles = ["En Progreso", "Enviar a Revisión"]
                         idx_actual = estados_posibles.index(task['state']) if task['state'] in estados_posibles else 0
                         
@@ -496,6 +480,7 @@ def render_employee_view():
 
                         if update_btn:
                             final_notes = task["notes"] or ""
+                            curr_dt_safe = datetime.now() 
 
                             # Validación de Plazos (Fuera de Plazo)
                             if task["end_time"]:
@@ -505,23 +490,21 @@ def render_employee_view():
                                     else datetime.strptime(str(task["end_time"]), "%Y-%m-%d %H:%M:%S")
                                 )
                                 
-                                if curr_dt > limit_dt_act:
+                                if curr_dt_safe > limit_dt_act:
                                     tag_fuera_plazo = "[ENTREGADO FUERA DE PLAZO]"
                                     if tag_fuera_plazo not in final_notes:
                                         final_notes = f"{tag_fuera_plazo}\n{final_notes}".strip()
                                     st.warning("⚠️ El estado fue actualizado fuera del tiempo límite.")
 
-                            execute(
-                                "UPDATE Tareas SET Estado_Tarea=%s, Observaciones=%s WHERE ID_Tarea=%s AND ID_Trabajador=%s",
-                                (new_state, final_notes.strip(), task["id"], user["id"]),
-                            )
+                            # Actualización segura mediante el repositorio
+                            update_task_status_by_worker(task["id"], user["id"], new_state, final_notes.strip())
                             st.success("Tarea actualizada correctamente.")
                             st.rerun()
                             
                         st.caption("💡 *Si necesitas explicar un bloqueo o retraso, utiliza el chat de la tarea.*")
 
                     st.divider()
-                    
+
                     # SECCIÓN DE CHAT Y COMUNICACIÓN
                     st.markdown("💬 **Feedback y Comunicación**")
                     render_chat_fragment(task["id"], "Empleado")
@@ -568,7 +551,6 @@ def render_employee_view():
                                     st.warning("Escribe un mensaje o adjunta un archivo antes de enviar.")
         else:
             st.info("No tienes tareas asignadas para el día de hoy.")
-
     # MI PERFIL (EMPLEADO)
     elif st.session_state.emp_nav == "👤 Mi Perfil":
         st.subheader("🔒 Cambiar Contraseña")

@@ -11,7 +11,8 @@ from zoneinfo import ZoneInfo
 from services.google_drive_service import GoogleDriveService
 from repositories.attendance_repo import get_attendance_by_worker_and_date, register_entry, register_exit
 from repositories.auth_repo import get_user_by_id_and_role, authenticate_user
-
+from services.validador_Archivos import validate_secure_file
+from repositories.tareas_repo import get_tasks_by_worker_and_date, update_task_status_by_worker
 drive = GoogleDriveService()
 
 # Configuración de página
@@ -530,25 +531,38 @@ def render_employee_view():
                     with col_msg2:
                         if st.button("Enviar", key=f"send_emp_{task['id']}", use_container_width=True):
                             file_link = ""
-                            if uploaded_file_emp and drive_service:
-                                file_bytes = uploaded_file_emp.getvalue()
-                                drive_res = drive_service.upload_file(
-                                    file_data=file_bytes,
-                                    file_name=uploaded_file_emp.name,
-                                    mime_type=uploaded_file_emp.type
+                            bloqueo_seguridad = False
+                            
+                            if uploaded_file_emp:
+                                es_valido, msj_error = validate_secure_file(
+                                    uploaded_file_emp.name, 
+                                    uploaded_file_emp.type, 
+                                    uploaded_file_emp.size
                                 )
-                                if drive_res and "webViewLink" in drive_res:
-                                    file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_emp.name}]({drive_res['webViewLink']})"
-                                    st.success("Archivo subido a Google Drive.")
-                                else:
-                                    st.error("Error al subir el archivo a Google Drive.")
+                                
+                                if not es_valido:
+                                    st.error(msj_error)
+                                    bloqueo_seguridad = True
+                                elif drive_service:
+                                    file_bytes = uploaded_file_emp.getvalue()
+                                    drive_res = drive_service.upload_file(
+                                        file_data=file_bytes,
+                                        file_name=uploaded_file_emp.name,
+                                        mime_type=uploaded_file_emp.type
+                                    )
+                                    if drive_res and "webViewLink" in drive_res:
+                                        file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_emp.name}]({drive_res['webViewLink']})"
+                                        st.success("Archivo subido a Google Drive de forma segura.")
+                                    else:
+                                        st.error("Error en la conexión con Google Drive.")
 
-                            final_message = (reply_msg + file_link).strip()
-                            if final_message:
-                                agregar_comentario(task["id"], user["name"], "Empleado", final_message)
-                                st.rerun()
-                            else:
-                                st.warning("Escribe un mensaje o adjunta un archivo antes de enviar.")
+                            if not bloqueo_seguridad:
+                                final_message = (reply_msg + file_link).strip()
+                                if final_message:
+                                    agregar_comentario(task["id"], user["name"], "Empleado", final_message)
+                                    st.rerun()
+                                else:
+                                    st.warning("Escribe un mensaje o adjunta un archivo antes de enviar.")
         else:
             st.info("No tienes tareas asignadas para el día de hoy.")
 
@@ -705,27 +719,43 @@ def render_admin_view():
                     with col_msg1:
                         nuevo_msg = st.text_input("Instrucciones u observaciones...", key=f"input_admin_{task['id']}", label_visibility="collapsed")
                     with col_msg2:
-                        if st.button("Enviar Feedback", key=f"send_admin_{task['id']}", use_container_width=True):
+                        if st.button("Enviar", key=f"send_emp_{task['id']}", use_container_width=True):
                             file_link = ""
-                            if uploaded_file_admin and drive_service:
-                                file_bytes = uploaded_file_admin.getvalue()
-                                drive_res = drive_service.upload_file(
-                                    file_data=file_bytes,
-                                    file_name=uploaded_file_admin.name,
-                                    mime_type=uploaded_file_admin.type
+                            bloqueo_seguridad = False
+                            
+                            if uploaded_file_admin:
+                                # 1. Ejecutar barrera de seguridad
+                                es_valido, msj_error = validate_secure_file(
+                                    uploaded_file_admin.name, 
+                                    uploaded_file_admin.type, 
+                                    uploaded_file_admin.size
                                 )
-                                if drive_res and "webViewLink" in drive_res:
-                                    file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_admin.name}]({drive_res['webViewLink']})"
-                                    st.success("Archivo subido a Google Drive.")
-                                else:
-                                    st.error("Error al subir el archivo a Google Drive.")
+                                
+                                if not es_valido:
+                                    st.error(msj_error)
+                                    bloqueo_seguridad = True
+                                elif drive_service:
+                                    # 2. Si es válido, recién lo enviamos a la nube
+                                    file_bytes = uploaded_file_admin.getvalue()
+                                    drive_res = drive_service.upload_file(
+                                        file_data=file_bytes,
+                                        file_name=uploaded_file_admin.name,
+                                        mime_type=uploaded_file_admin.type
+                                    )
+                                    if drive_res and "webViewLink" in drive_res:
+                                        file_link = f"\n📎 [Archivo Adjunto: {uploaded_file_admin.name}]({drive_res['webViewLink']})"
+                                        st.success("Archivo subido a Google Drive de forma segura.")
+                                    else:
+                                        st.error("Error en la conexión con Google Drive.")
 
-                            final_message = (nuevo_msg + file_link).strip()
-                            if final_message:
-                                agregar_comentario(task["id"], st.session_state.user["name"], "Administrador", final_message)
-                                st.rerun()
-                            else:
-                                st.warning("Escribe un mensaje o adjunta un archivo.")
+                            # Solo se envía el mensaje a MySQL si no hubo un bloqueo de seguridad
+                            if not bloqueo_seguridad:
+                                final_message = (nuevo_msg + file_link).strip()
+                                if final_message:
+                                    agregar_comentario(task["id"], st.session_state.user["name"], "Administrador", final_message)
+                                    st.rerun()
+                                else:
+                                    st.warning("Escribe un mensaje o adjunta un archivo antes de enviar.")
         else:
             st.info("No hay tareas registradas hoy.")
 

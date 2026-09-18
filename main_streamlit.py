@@ -640,7 +640,6 @@ def render_admin_view():
         st.divider()
 
         st.subheader("📋 Control de Tareas (ClickUp View)")
-        st.subheader("📋 Control de Tareas (ClickUp View)")
         
         # 1. Obtenemos todas las tareas limpiamente desde el repositorio
         tasks_monitoreo = get_all_tasks_for_today()

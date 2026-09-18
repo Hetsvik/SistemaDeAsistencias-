@@ -21,3 +21,7 @@ def update_task_status_by_worker(task_id, worker_id, new_state, notes):
         WHERE ID_Tarea=%s AND ID_Trabajador=%s
     """
     return execute_db(sql, (new_state, notes, task_id, worker_id))
+def delete_task(task_id):
+    """Elimina una tarea del registro."""
+    sql = "DELETE FROM Tareas WHERE ID_Tarea=%s"
+    return execute_db(sql, (task_id,))

@@ -12,7 +12,10 @@ from services.google_drive_service import GoogleDriveService
 from repositories.attendance_repo import get_attendance_by_worker_and_date, register_entry, register_exit
 from repositories.auth_repo import get_user_by_id_and_role, authenticate_user
 from services.validador_Archivos import validate_secure_file
-from repositories.tareas_repo import get_tasks_by_worker_and_date, update_task_status_by_worker
+from repositories.tareas_repo import (
+    get_tasks_by_worker_and_date, update_task_status_by_worker,
+    get_all_tasks_for_today, update_task_state_admin, delete_task
+)
 drive = GoogleDriveService()
 
 # Configuración de página
@@ -655,17 +658,10 @@ def render_admin_view():
         st.divider()
 
         st.subheader("📋 Control de Tareas (ClickUp View)")
-        tasks_monitoreo = query(
-            """
-            SELECT T.ID_Tarea AS id, E.Nombre_Completo AS emp, P.Nombre_Proyecto AS project, 
-                   T.Descripcion_Tarea AS description, T.Estado_Tarea AS state, T.Observaciones AS notes
-            FROM Tareas T
-            JOIN Trabajadores W ON W.ID_Trabajador = T.ID_Trabajador
-            JOIN Empleados E ON E.ID_Empleado = W.ID_Empleado
-            JOIN Proyectos P ON P.ID_Proyecto = T.ID_Proyecto
-            WHERE T.Fecha = CURDATE() ORDER BY T.ID_Tarea DESC
-            """
-        )
+        st.subheader("📋 Control de Tareas (ClickUp View)")
+        
+        # 1. Obtenemos todas las tareas limpiamente desde el repositorio
+        tasks_monitoreo = get_all_tasks_for_today()
 
         if tasks_monitoreo:
             for task in tasks_monitoreo:
@@ -681,23 +677,23 @@ def render_admin_view():
                     if task['state'] in ('Enviar a Revisión', 'En Revisión'):
                         with col_btn1:
                             if st.button("✅ Aprobar (Completada)", key=f"approve_{task['id']}", type="primary", use_container_width=True):
-                                execute("UPDATE Tareas SET Estado_Tarea='Completada' WHERE ID_Tarea=%s", (task["id"],))
+                                update_task_state_admin(task["id"], 'Completada')
                                 st.rerun()
                         with col_btn2:
                             if st.button("🔄 Rechazar (En Progreso)", key=f"reject_{task['id']}", use_container_width=True):
-                                execute("UPDATE Tareas SET Estado_Tarea='En Progreso' WHERE ID_Tarea=%s", (task["id"],))
+                                update_task_state_admin(task["id"], 'En Progreso')
                                 st.rerun()
 
                     elif task['state'] in ('En Progreso', 'Asignada'):
                         with col_btn1:
                             if st.button("⏸️ Pausar Tarea", key=f"pause_{task['id']}", use_container_width=True):
-                                execute("UPDATE Tareas SET Estado_Tarea='Bloqueada' WHERE ID_Tarea=%s", (task["id"],))
+                                update_task_state_admin(task["id"], 'Bloqueada')
                                 st.rerun()
 
                     elif task['state'] == 'Bloqueada':
                         with col_btn1:
                             if st.button("▶️ Reanudar (En Progreso)", key=f"resume_{task['id']}", use_container_width=True):
-                                execute("UPDATE Tareas SET Estado_Tarea='En Progreso' WHERE ID_Tarea=%s", (task["id"],))
+                                update_task_state_admin(task["id"], 'En Progreso')
                                 st.rerun()
 
                     elif task['state'] == 'Completada':
@@ -706,7 +702,7 @@ def render_admin_view():
 
                     with col_del:
                         if st.button("🗑️", key=f"delete_{task['id']}", use_container_width=True, help="Eliminar tarea"):
-                            execute("DELETE FROM Tareas WHERE ID_Tarea=%s", (task["id"],))
+                            delete_task(task["id"])
                             st.rerun()
                     st.divider()
                     st.markdown("💬 **Chat de la Tarea**")
